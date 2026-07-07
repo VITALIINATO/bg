@@ -1,0 +1,1142 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Spot, UserPresence, RoomState, HistoryEvent, ActiveUser } from './types';
+import {
+  createRoom,
+  fetchRoomState,
+  updateRoomState,
+  DEFAULT_SPOTS,
+  createInitialState
+} from './lib/api';
+import MapBoard from './components/MapBoard';
+import AddSpotForm from './components/AddSpotForm';
+import {
+  MapPin,
+  Users,
+  RefreshCw,
+  LogOut,
+  Share2,
+  Copy,
+  Plus,
+  Trash2,
+  Clock,
+  Compass,
+  CheckCircle,
+  User,
+  ArrowRight,
+  ChevronRight,
+  HelpCircle,
+  AlertCircle,
+  Map as MapIcon,
+  X,
+  Info,
+  Layers,
+  Settings,
+  Database
+} from 'lucide-react';
+
+// Help functions to generate random IDs
+const generateId = (length: number = 8): string => {
+  return Math.random().toString(36).substring(2, 2 + length);
+};
+
+export default function App() {
+  // --- User State ---
+  const [userId, setUserId] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+  const [tempName, setTempName] = useState<string>('');
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+
+  // --- Room & Connection State ---
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- Creation States ---
+  const [newRoomName, setNewRoomName] = useState<string>('');
+  const [inputRoomId, setInputRoomId] = useState<string>('');
+  
+  // --- Spot Addition State ---
+  const [isAddingSpot, setIsAddingSpot] = useState<boolean>(false);
+  const [newSpotCoords, setNewSpotCoords] = useState<{ x: number; y: number } | null>(null);
+  
+  // --- UI Interactivity State ---
+  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const [copiedId, setCopiedId] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(10);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
+
+  // --- Refs ---
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 1. Initialize user from localStorage or generate new
+  useEffect(() => {
+    let savedUserId = localStorage.getItem('coloc_userid');
+    let savedUserName = localStorage.getItem('coloc_username');
+
+    if (!savedUserId) {
+      savedUserId = 'u-' + generateId();
+      localStorage.setItem('coloc_userid', savedUserId);
+    }
+    setUserId(savedUserId);
+
+    if (!savedUserName) {
+      // Pick a random funny nickname if none exists
+      const animals = ['Путник', 'Искатель', 'Компас', 'Радар', 'Навигатор', 'Следопыт'];
+      const num = Math.floor(Math.random() * 900) + 100;
+      savedUserName = `${animals[Math.floor(Math.random() * animals.length)]}_${num}`;
+      localStorage.setItem('coloc_username', savedUserName);
+    }
+    setUserName(savedUserName);
+    setTempName(savedUserName);
+
+    // 2. Check URL for room code ?room=YOUR_ID or hash
+    const params = new URLSearchParams(window.location.search);
+    const urlRoom = params.get('room') || window.location.hash.replace('#', '');
+    
+    if (urlRoom) {
+      setRoomId(urlRoom);
+    } else {
+      const savedRoomId = localStorage.getItem('coloc_last_room');
+      if (savedRoomId) {
+        setRoomId(savedRoomId);
+      }
+    }
+  }, []);
+
+  // 3. Load room state whenever roomId changes
+  useEffect(() => {
+    if (!roomId) {
+      setRoomState(null);
+      return;
+    }
+
+    // Save to local storage as last room
+    localStorage.setItem('coloc_last_room', roomId);
+    
+    // Update URL query parameter without reloading
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', roomId);
+    window.history.replaceState({}, '', url.toString());
+
+    loadRoomData(roomId, true);
+  }, [roomId]);
+
+  // 4. Polling effect: auto-sync every 10 seconds
+  useEffect(() => {
+    if (!roomId) {
+      stopTimers();
+      return;
+    }
+
+    // Start countdown and sync timers
+    startTimers();
+
+    return () => {
+      stopTimers();
+    };
+  }, [roomId]);
+
+  const startTimers = () => {
+    stopTimers();
+    setCountdown(10);
+
+    // Countdown timer (runs every second)
+    countdownTimerRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          // Trigger sync when countdown hits 0
+          syncData();
+          return 10;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const stopTimers = () => {
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+    if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+  };
+
+  // Helper to force synchronization
+  const syncData = async () => {
+    if (!roomId || isSaving || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await loadRoomData(roomId, false);
+    } catch (e) {
+      console.warn('Sync failed', e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Main loader for room data
+  const loadRoomData = async (targetRoomId: string, showSpinner: boolean) => {
+    if (showSpinner) setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchRoomState(targetRoomId);
+      
+      // Update our presence in the list of users
+      let updatedUsers = [...data.users];
+      const userIndex = updatedUsers.findIndex((u) => u.id === userId);
+      
+      const nowString = new Date().toISOString();
+      if (userIndex >= 0) {
+        updatedUsers[userIndex] = {
+          ...updatedUsers[userIndex],
+          name: userName,
+          lastActive: nowString
+        };
+      } else {
+        updatedUsers.push({
+          id: userId,
+          name: userName,
+          lastActive: nowString
+        });
+      }
+
+      // Filter out users who have been inactive for more than 48 hours to keep list clean
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+      updatedUsers = updatedUsers.filter((u) => new Date(u.lastActive) > cutoff);
+
+      const nextState = { ...data, users: updatedUsers };
+      setRoomState(nextState);
+
+      // Save user heartbeat back to server silently if user was added/updated
+      if (JSON.stringify(data.users) !== JSON.stringify(updatedUsers)) {
+        await updateRoomState(targetRoomId, nextState);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError('Не удалось загрузить данные группы. Проверьте ID или создайте новую группу.');
+      // If room not found/invalid, clear local last room
+      if (showSpinner) {
+        setRoomId(null);
+        localStorage.removeItem('coloc_last_room');
+      }
+    } finally {
+      if (showSpinner) setIsLoading(false);
+    }
+  };
+
+  // Create room handler
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = newRoomName.trim() || 'Наша Компания';
+    setIsLoading(true);
+    setError(null);
+    try {
+      const newId = await createRoom(title);
+      setRoomId(newId);
+      setNewRoomName('');
+    } catch (err) {
+      setError('Не удалось создать комнату на api.npoint.io. Пожалуйста, попробуйте снова.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Join room handler
+  const handleJoinRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetId = inputRoomId.trim();
+    if (targetId) {
+      setRoomId(targetId);
+      setInputRoomId('');
+    }
+  };
+
+  // Handle Nickname Update
+  const handleSaveName = async () => {
+    const trimmed = tempName.trim();
+    if (!trimmed) return;
+    
+    setUserName(trimmed);
+    localStorage.setItem('coloc_username', trimmed);
+    setIsEditingName(false);
+
+    // If already in a room, synchronize the name change
+    if (roomId && roomState) {
+      setIsSaving(true);
+      try {
+        const updatedUsers = roomState.users.map((u) =>
+          u.id === userId ? { ...u, name: trimmed, lastActive: new Date().toISOString() } : u
+        );
+        // Also update the presence list names
+        const updatedPresence = roomState.presence.map((p) =>
+          p.userId === userId ? { ...p, userName: trimmed } : p
+        );
+
+        const nextState = {
+          ...roomState,
+          users: updatedUsers,
+          presence: updatedPresence
+        };
+
+        setRoomState(nextState);
+        await updateRoomState(roomId, nextState);
+      } catch (err) {
+        console.error('Failed to update nickname in room:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  // Leave current room
+  const handleLeaveRoom = () => {
+    stopTimers();
+    setRoomId(null);
+    setRoomState(null);
+    localStorage.removeItem('coloc_last_room');
+    
+    // Clear URL parameter
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    window.history.replaceState({}, '', url.toString());
+  };
+
+  // CHECK-IN / CHECK-OUT Core Logic
+  const handleTogglePresence = async (spotId: string) => {
+    if (!roomId || !roomState) return;
+
+    setIsSaving(true);
+    stopTimers(); // pause polling during transaction
+    
+    try {
+      // Re-fetch latest state to prevent race conditions as much as possible
+      const freshState = await fetchRoomState(roomId);
+      
+      const spot = freshState.spots.find((s) => s.id === spotId);
+      if (!spot) throw new Error('Геоточка не найдена.');
+
+      const isCurrentlyThere = freshState.presence.some(
+        (p) => p.userId === userId && p.spotId === spotId
+      );
+
+      let nextPresence = [...freshState.presence];
+      let nextHistory = [...freshState.history];
+
+      // Format event details
+      const nowString = new Date().toISOString();
+      const eventId = 'ev-' + generateId();
+
+      if (isCurrentlyThere) {
+        // --- CHECK OUT ---
+        nextPresence = nextPresence.filter((p) => !(p.userId === userId && p.spotId === spotId));
+        
+        const newEvent: HistoryEvent = {
+          id: eventId,
+          userId,
+          userName,
+          spotId,
+          spotName: spot.name,
+          type: 'check-out',
+          timestamp: nowString
+        };
+        nextHistory = [newEvent, ...nextHistory].slice(0, 150); // Keep last 150 events
+      } else {
+        // --- CHECK IN ---
+        // A user can only be at ONE spot at a time. If they are somewhere else, automatically check them out from there first!
+        const existingPresences = nextPresence.filter((p) => p.userId === userId);
+        
+        for (const prev of existingPresences) {
+          const prevSpot = freshState.spots.find((s) => s.id === prev.spotId);
+          const checkOutEvent: HistoryEvent = {
+            id: 'ev-' + generateId(),
+            userId,
+            userName,
+            spotId: prev.spotId,
+            spotName: prevSpot ? prevSpot.name : 'Предыдущая точка',
+            type: 'check-out',
+            timestamp: nowString
+          };
+          nextHistory = [checkOutEvent, ...nextHistory];
+        }
+
+        // Remove previous presence entirely
+        nextPresence = nextPresence.filter((p) => p.userId !== userId);
+
+        // Add new check-in presence
+        nextPresence.push({
+          userId,
+          userName,
+          spotId,
+          timestamp: nowString
+        });
+
+        // Add check-in event
+        const checkInEvent: HistoryEvent = {
+          id: eventId,
+          userId,
+          userName,
+          spotId,
+          spotName: spot.name,
+          type: 'check-in',
+          timestamp: nowString
+        };
+        nextHistory = [checkInEvent, ...nextHistory].slice(0, 150);
+      }
+
+      // Build updated state
+      const nextState: RoomState = {
+        ...freshState,
+        presence: nextPresence,
+        history: nextHistory,
+        // Make sure we exist/are updated in users
+        users: freshState.users.map((u) =>
+          u.id === userId ? { ...u, name: userName, lastActive: nowString } : u
+        )
+      };
+
+      // Push back to server
+      await updateRoomState(roomId, nextState);
+      setRoomState(nextState);
+    } catch (err: any) {
+      console.error(err);
+      alert('Ошибка при сохранении статуса. Пожалуйста, попробуйте обновить страницу.');
+    } finally {
+      setIsSaving(false);
+      startTimers(); // resume polling
+    }
+  };
+
+  // Add custom spot
+  const handleAddCustomSpot = async (name: string, description: string, x: number, y: number) => {
+    if (!roomId || !roomState) return;
+
+    setIsSaving(true);
+    stopTimers();
+
+    try {
+      const freshState = await fetchRoomState(roomId);
+      
+      const newSpot: Spot = {
+        id: 'spot-' + generateId(),
+        name,
+        description,
+        x,
+        y
+      };
+
+      const nextState: RoomState = {
+        ...freshState,
+        spots: [...freshState.spots, newSpot]
+      };
+
+      await updateRoomState(roomId, nextState);
+      setRoomState(nextState);
+      setIsAddingSpot(false);
+      setNewSpotCoords(null);
+      setSelectedSpotId(newSpot.id); // select newly created spot
+    } catch (err) {
+      console.error(err);
+      alert('Не удалось добавить новую геоточку. Попробуйте еще раз.');
+    } finally {
+      setIsSaving(false);
+      startTimers();
+    }
+  };
+
+  // Delete a custom spot
+  const handleDeleteSpot = async (spotId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // prevent selecting the spot when clicking delete
+    
+    if (!roomId || !roomState) return;
+
+    const spotToDelete = roomState.spots.find(s => s.id === spotId);
+    if (!spotToDelete) return;
+
+    const peopleThere = roomState.presence.filter(p => p.spotId === spotId);
+    if (peopleThere.length > 0) {
+      if (!confirm(`На точке "${spotToDelete.name}" сейчас находятся люди (${peopleThere.length} чел.). Вы уверены, что хотите удалить эту точку?`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`Вы действительно хотите удалить геоточку "${spotToDelete.name}"?`)) {
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    stopTimers();
+
+    try {
+      const freshState = await fetchRoomState(roomId);
+      
+      // Remove spot and its presence data
+      const nextSpots = freshState.spots.filter(s => s.id !== spotId);
+      const nextPresence = freshState.presence.filter(p => p.spotId !== spotId);
+
+      const nextState: RoomState = {
+        ...freshState,
+        spots: nextSpots,
+        presence: nextPresence
+      };
+
+      await updateRoomState(roomId, nextState);
+      setRoomState(nextState);
+      if (selectedSpotId === spotId) {
+        setSelectedSpotId(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при удалении точки.');
+    } finally {
+      setIsSaving(false);
+      startTimers();
+    }
+  };
+
+  // Helper to copy links/IDs
+  const copyRoomLink = () => {
+    if (!roomId) return;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const copyRoomId = () => {
+    if (!roomId) return;
+    navigator.clipboard.writeText(roomId);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  // Convert coordinate layout percent to mock real latitude / longitude coordinates
+  const getMockCoords = (spot: Spot) => {
+    const defaultLat = 55.7558;
+    const defaultLng = 37.6173;
+    const lat = (defaultLat + ((spot.y ?? 50) - 50) * 0.0015).toFixed(4);
+    const lng = (defaultLng + ((spot.x ?? 50) - 50) * 0.0025).toFixed(4);
+    return `${lat}° N, ${lng}° E`;
+  };
+
+  // Render check-in / check-out history event
+  const renderHistoryItem = (ev: HistoryEvent) => {
+    const date = new Date(ev.timestamp);
+    const timeFormatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const isCurrentUser = ev.userId === userId;
+    const isCheckIn = ev.type === 'check-in';
+
+    // Different color markers based on action type
+    const borderClass = isCheckIn 
+      ? 'border-l-2 border-emerald-500' 
+      : 'border-l-2 border-slate-300';
+
+    return (
+      <div
+        key={ev.id}
+        className={`${borderClass} pl-3 py-1.5 transition-all text-[11px] hover:bg-slate-50`}
+      >
+        <div className="flex items-center justify-between text-slate-400 text-[10px] font-mono">
+          <span>{timeFormatted}</span>
+          {isCurrentUser && <span className="text-[9px] font-mono bg-indigo-50 text-indigo-600 px-1 rounded">Вы</span>}
+        </div>
+        <p className="mt-0.5 text-slate-700 leading-tight">
+          <strong className="text-slate-900 font-semibold">{ev.userName}</strong>{' '}
+          {isCheckIn ? (
+            <span>
+              прибыл на <span className="text-emerald-600 font-bold uppercase">{ev.spotName}</span>
+            </span>
+          ) : (
+            <span>
+              снялся с <span className="text-slate-500 font-bold uppercase">{ev.spotName}</span>
+            </span>
+          )}
+        </p>
+      </div>
+    );
+  };
+
+  // Find the spot where the current user is active right now
+  const currentUserPresence = roomState?.presence.find(p => p.userId === userId);
+  const currentUserSpot = currentUserPresence 
+    ? roomState?.spots.find(s => s.id === currentUserPresence.spotId)
+    : null;
+
+  return (
+    <div className="w-full min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 overflow-x-hidden">
+      
+      {/* Top Navigation / Header */}
+      <header className="h-14 bg-[#1E293B] text-white flex items-center justify-between px-4 sm:px-6 shrink-0 shadow-md">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="bg-blue-500 p-1.5 rounded flex items-center justify-center">
+            <Compass className="w-5 h-5 text-white animate-spin-slow" />
+          </div>
+          <div>
+            <h1 className="text-xs sm:text-sm font-black tracking-wider uppercase flex items-center gap-2">
+              GeoSync Collective
+            </h1>
+            <p className="text-[10px] text-slate-400 font-mono hidden sm:block">
+              {roomId ? `API: npoint.io/bin/${roomId.slice(0, 10)}` : 'API: npoint.io/v1/collective'}
+            </p>
+          </div>
+        </div>
+
+        {roomId && (
+          <div className="hidden md:flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                Сессия: {roomState?.roomName || 'Синхронизация...'}
+              </span>
+            </div>
+            <div className="h-8 w-[1px] bg-slate-700"></div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          {roomId && (
+            <div className="text-right hidden sm:block">
+              {isEditingName ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    maxLength={15}
+                    className="px-2 py-0.5 text-[11px] text-slate-900 bg-white border border-slate-300 rounded font-medium focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveName();
+                      if (e.key === 'Escape') {
+                        setTempName(userName);
+                        setIsEditingName(false);
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveName}
+                    className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px]"
+                  >
+                    ОК
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] font-black tracking-tight">{userName}</p>
+                  <p className="text-[10px] text-emerald-400 font-semibold">
+                    {currentUserSpot ? `На точке: ${currentUserSpot.name}` : 'Статус: Вне точек'}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          <div 
+            onClick={() => {
+              if (roomId) {
+                setTempName(userName);
+                setIsEditingName(!isEditingName);
+              }
+            }}
+            className={`w-8 h-8 rounded-full bg-slate-600 border border-slate-500 flex items-center justify-center text-xs font-bold text-white cursor-pointer hover:bg-slate-500 transition-colors ${
+              currentUserSpot ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-slate-900' : ''
+            }`}
+            title="Нажмите, чтобы настроить имя"
+          >
+            {userName ? userName.charAt(0).toUpperCase() : 'U'}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Viewport Area */}
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 gap-4">
+        
+        {/* Error Notice */}
+        {error && (
+          <div className="w-full bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-3 text-rose-800 shrink-0">
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+            <div className="flex-1 text-xs">
+              <p className="font-bold">Ошибка соединения</p>
+              <p className="text-rose-700 mt-0.5">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Setup Screen / Join & Create Form (if not logged into any group) */}
+        {!roomId ? (
+          <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full py-10">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-md w-full">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto mb-4">
+                <Compass className="w-6 h-6 text-blue-500" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight text-center uppercase">
+                GeoSync Collective Setup
+              </h2>
+              <p className="text-xs text-slate-500 mt-1 text-center max-w-xs mx-auto leading-relaxed">
+                Введите имя вашей группы для мгновенного развертывания коллективного трекера или присоединитесь к существующему узлу.
+              </p>
+
+              <hr className="my-5 border-slate-100" />
+
+              {/* Action 1: Create room */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Создать новый узел группы
+                </label>
+                <form onSubmit={handleCreateRoom} className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Например: Пятничный маршрут, Сбор"
+                    value={newRoomName}
+                    onChange={(e) => setNewRoomName(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white font-medium placeholder:text-slate-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                  >
+                    {isLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    <span>Создать</span>
+                  </button>
+                </form>
+              </div>
+
+              <div className="relative my-5 text-center">
+                <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-100"></span>
+                <span className="relative bg-white px-3 text-[9px] text-slate-400 font-bold uppercase tracking-widest">или</span>
+              </div>
+
+              {/* Action 2: Join room */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Присоединиться по ID
+                </label>
+                <form onSubmit={handleJoinRoom} className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Вставьте ID контейнера (например: b53f19)"
+                    value={inputRoomId}
+                    onChange={(e) => setInputRoomId(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white placeholder:text-slate-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputRoomId.trim()}
+                    className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded hover:bg-slate-900 transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>Войти</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 mt-5">
+                <div className="flex gap-2">
+                  <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    <strong>Синхронизация npoint:</strong> все отметки и изменения в реальном времени сохраняются в облаке и транслируются вашей команде. Ссылка-приглашение содержит код доступа.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Connected State: Three column High-Density workspace */
+          <>
+            {/* COLUMN 1: Sidebar Group Status */}
+            <aside className="w-full lg:w-64 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden">
+              <div className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center shrink-0">
+                <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Участники Группы ({roomState?.users.length || 0})</span>
+                </h2>
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
+                  {roomState?.presence.length || 0} на месте
+                </span>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[220px] lg:max-h-none">
+                {roomState?.users && roomState.users.length > 0 ? (
+                  roomState.users.map((user) => {
+                    const userPresence = roomState.presence.find(p => p.userId === user.id);
+                    const userSpot = userPresence ? roomState.spots.find(s => s.id === userPresence.spotId) : null;
+                    const isMe = user.id === userId;
+
+                    return (
+                      <div
+                        key={user.id}
+                        className={`flex items-center justify-between p-2 rounded text-xs transition-all ${
+                          userSpot 
+                            ? isMe 
+                              ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium'
+                              : 'bg-blue-50 border border-blue-100 text-blue-900'
+                            : 'hover:bg-slate-50 border border-transparent text-slate-600'
+                        }`}
+                      >
+                        <span className="truncate flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${userSpot ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                          <span className="truncate">{user.name} {isMe && '(Вы)'}</span>
+                        </span>
+                        {userSpot ? (
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                            isMe ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                          } truncate max-w-[90px]`}>
+                            {userSpot.name}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-slate-400 font-mono">OFF-SITE</span>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-400 italic text-center py-4">Список пуст</p>
+                )}
+              </div>
+
+              {/* Compact Quick Link Card */}
+              <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 text-[10px] space-y-2">
+                <p className="text-slate-500 leading-normal font-medium">
+                  <strong>ID Узла:</strong> <span className="font-mono bg-white px-1 py-0.5 border border-slate-200 rounded">{roomId}</span>
+                </p>
+                <div className="flex gap-1">
+                  <button
+                    onClick={copyRoomLink}
+                    className="flex-1 py-1 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center gap-1 active:scale-95 transition-all text-[9px]"
+                  >
+                    <Share2 className="w-2.5 h-2.5 text-blue-500" />
+                    <span>{copiedLink ? 'Скопировано!' : 'Копировать Ссылку'}</span>
+                  </button>
+                  <button
+                    onClick={copyRoomId}
+                    className="py-1 px-2 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center active:scale-95 transition-all text-[9px]"
+                    title="Скопировать ID комнаты"
+                  >
+                    {copiedId ? 'Copied' : <Copy className="w-2.5 h-2.5" />}
+                  </button>
+                </div>
+              </div>
+            </aside>
+
+            {/* COLUMN 2: Center Grid: Geo Points + Tabs */}
+            <section className="flex-1 flex flex-col gap-3 min-w-0">
+              
+              {/* Center switcher / title */}
+              <div className="bg-white p-2.5 border border-slate-200 rounded-lg shrink-0 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {roomState?.roomName || 'Синхронизируемый трекер'}
+                  </span>
+                </div>
+
+                {/* Tab switchers to change layout view mode */}
+                <div className="flex bg-slate-100 p-0.5 rounded border border-slate-200">
+                  <button
+                    onClick={() => setViewMode('cards')}
+                    className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-all ${
+                      viewMode === 'cards' 
+                        ? 'bg-white text-slate-900 shadow-xs' 
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Карточки точек
+                  </button>
+                  <button
+                    onClick={() => setViewMode('map')}
+                    className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-all ${
+                      viewMode === 'map' 
+                        ? 'bg-white text-slate-900 shadow-xs' 
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Интерактивная карта
+                  </button>
+                </div>
+              </div>
+
+              {/* View Content area */}
+              <div className="flex-1 overflow-y-auto">
+                {isLoading ? (
+                  <div className="h-full flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg p-10">
+                    <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                    <p className="text-xs text-slate-400 mt-2 font-mono">Обновление базы...</p>
+                  </div>
+                ) : viewMode === 'map' ? (
+                  /* TAB: Interactive map coordinate layout */
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm h-full flex flex-col min-h-[400px]">
+                    <div className="flex-1">
+                      <MapBoard
+                        spots={roomState?.spots || []}
+                        presence={roomState?.presence || []}
+                        currentUserId={userId}
+                        onSelectSpot={(spot) => {
+                          setSelectedSpotId(spot.id);
+                          setViewMode('cards'); // Switch back to cards for check-in action
+                        }}
+                        selectedSpotId={selectedSpotId || undefined}
+                        isAddingSpotMode={isAddingSpot}
+                        onMapClickForCoords={(x, y) => {
+                          setNewSpotCoords({ x, y });
+                        }}
+                        newSpotCoords={newSpotCoords}
+                      />
+                    </div>
+                    {isAddingSpot ? (
+                      <div className="mt-4 border-t pt-3">
+                        <AddSpotForm
+                          onAddSpot={handleAddCustomSpot}
+                          onCancel={() => {
+                            setIsAddingSpot(false);
+                            setNewSpotCoords(null);
+                          }}
+                          selectedCoords={newSpotCoords}
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsAddingSpot(true)}
+                        className="mt-3 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Добавить новую точку на карту</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  /* TAB: Location High Density Cards */
+                  <div className="space-y-4">
+                    
+                    {isAddingSpot && (
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                        <AddSpotForm
+                          onAddSpot={handleAddCustomSpot}
+                          onCancel={() => {
+                            setIsAddingSpot(false);
+                            setNewSpotCoords(null);
+                          }}
+                          selectedCoords={newSpotCoords}
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {roomState?.spots && roomState.spots.length > 0 ? (
+                        roomState.spots.map((spot) => {
+                          const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id);
+                          const isCurrentUserThere = usersAtSpot.some(u => u.userId === userId);
+                          const isSelected = selectedSpotId === spot.id;
+
+                          // Dynamic card border highlight if current user is checked-in there (as in design html)
+                          const cardStyle = isCurrentUserThere
+                            ? 'border-2 border-emerald-500 bg-white'
+                            : isSelected
+                            ? 'border-2 border-blue-500 bg-white shadow-md'
+                            : 'border border-slate-200 bg-white hover:border-slate-300';
+
+                          return (
+                            <div
+                              key={spot.id}
+                              onClick={() => handleTogglePresence(spot.id)}
+                              className={`${cardStyle} rounded-xl p-4 shadow-xs flex flex-col relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
+                            >
+                              <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
+                                  <span>📍</span>
+                                  <span>{spot.name}</span>
+                                </h3>
+                                
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteSpot(spot.id, e);
+                                  }}
+                                  className="p-1 text-slate-300 hover:text-rose-500 hover:bg-slate-100 rounded transition-colors"
+                                  title="Удалить эту геоточку"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {/* Two Indicators as requested */}
+                              <div className="space-y-2 mt-2">
+                                {/* Indicator 1: Green or Red presence status dot */}
+                                <div className="flex items-center gap-2">
+                                  {usersAtSpot.length > 0 ? (
+                                    <>
+                                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                                      <span className="text-xs font-bold text-emerald-700">На месте</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+                                      <span className="text-xs font-bold text-rose-600">Никого</span>
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Indicator 2: Travelers name (visible only if someone is on site) */}
+                                {usersAtSpot.length > 0 && (
+                                  <div className="text-xs text-slate-700 font-medium pt-1">
+                                    <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider block mb-1">
+                                      {usersAtSpot.length === 1 ? 'Путник' : 'Путники'}:
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {usersAtSpot.map((presenceUser) => (
+                                        <span
+                                          key={presenceUser.userId}
+                                          className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                                            presenceUser.userId === userId
+                                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                              : 'bg-slate-100 text-slate-800 border border-slate-200'
+                                          }`}
+                                        >
+                                          {presenceUser.userName} {presenceUser.userId === userId && '(Вы)'}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Bottom divider and info */}
+                              <div className="flex items-center justify-between border-t border-slate-100 pt-2 mt-4 text-[10px]">
+                                <span className="font-mono text-slate-300">
+                                  ID: {spot.id}
+                                </span>
+                                <span className="text-slate-400 font-semibold group-hover:text-blue-500 transition-colors">
+                                  {isCurrentUserThere ? 'Нажмите, чтобы сняться' : 'Нажмите, чтобы отметиться'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="col-span-full bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400">
+                          <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <h4 className="text-sm font-bold text-slate-700">Нет геоточек</h4>
+                          <p className="text-xs text-slate-400 mt-1">Добавьте первую точку, чтобы начать!</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {!isAddingSpot && (
+                      <button
+                        onClick={() => setIsAddingSpot(true)}
+                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>ДОБАВИТЬ НОВУЮ ГЕОТОЧКУ</span>
+                      </button>
+                    )}
+
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* COLUMN 3: Right Side Activity Stream */}
+            <aside className="w-full lg:w-72 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden">
+              <div className="p-3 border-b border-slate-100 bg-[#F8FAFC]">
+                <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                  <span>Лента активности (Live)</span>
+                </h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[220px] lg:max-h-none">
+                {roomState?.history && roomState.history.length > 0 ? (
+                  roomState.history.map((ev) => renderHistoryItem(ev))
+                ) : (
+                  <div className="text-center py-6 text-slate-400 italic text-[11px] font-sans">
+                    Нет последних действий. Нажмите "Отметиться" выше.
+                  </div>
+                )}
+              </div>
+            </aside>
+          </>
+        )}
+      </main>
+
+      {/* Bottom Controls / Quick Action Footer (Only if connected) */}
+      {roomId && roomState && (
+        <footer className="bg-white border-t border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-lg">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center sm:text-left">
+              Быстрый репорт местоположения
+            </span>
+            <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start">
+              {roomState.spots.slice(0, 4).map((spot) => {
+                const isThere = roomState.presence.some(p => p.userId === userId && p.spotId === spot.id);
+                return (
+                  <button
+                    key={spot.id}
+                    onClick={() => handleTogglePresence(spot.id)}
+                    className={`px-3 py-1.5 text-[11px] font-bold rounded transition-all uppercase ${
+                      isThere 
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs' 
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    {isThere ? `Покинуть: ${spot.name}` : `Я в: ${spot.name}`}
+                  </button>
+                );
+              })}
+              {currentUserSpot && (
+                <button
+                  onClick={() => handleTogglePresence(currentUserSpot.id)}
+                  className="px-3 py-1.5 border border-slate-300 text-rose-600 text-[11px] font-bold rounded hover:bg-rose-50"
+                >
+                  Сняться со всех точек
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0">
+            <div className="text-left sm:text-right">
+              <p className="text-[10px] text-slate-400">Автосинхронизация включена</p>
+              <p className="text-xs font-mono text-slate-600 flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isSyncing ? 'animate-ping' : ''}`}></span>
+                <span>Синхронизация через: <strong>{countdown}с</strong></span>
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={syncData}
+                disabled={isSyncing}
+                className="p-2.5 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center"
+                title="Принудительная синхронизация"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                onClick={handleLeaveRoom}
+                className="p-2.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-full hover:bg-rose-100 transition-colors"
+                title="Выйти из этой группы"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </footer>
+      )}
+
+      {/* Small informative baseline footer */}
+      {!roomId && (
+        <footer className="bg-white border-t border-slate-100 py-3.5 text-center text-[11px] text-slate-400 font-mono">
+          © 2026 GeoSync Collective • Синхронизация через api.npoint.io • Развертывание в реальном времени
+        </footer>
+      )}
+
+    </div>
+  );
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Групповые Геоточки",
+  "description": "Приложение для совместного отслеживания местоположения участников группы в ключевых гео-точках в реальном времени с синхронизацией через api.npoint.io.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
