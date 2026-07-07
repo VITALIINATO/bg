@@ -577,7 +577,7 @@ export default function App() {
               GeoSync Collective
             </h1>
             <p className="text-[10px] text-slate-400 font-mono hidden sm:block">
-              {roomId ? `API: npoint.io/bin/${roomId.slice(0, 10)}` : 'https://api.npoint.io/d5590d7a9d5aeceb4195'}
+              {roomId ? `API: npoint.io/bin/${roomId.slice(0, 10)}` : 'API: npoint.io/v1/collective'}
             </p>
           </div>
         </div>
