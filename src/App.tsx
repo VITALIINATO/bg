@@ -104,6 +104,9 @@ export default function App() {
       const savedRoomId = localStorage.getItem('coloc_last_room');
       if (savedRoomId) {
         setRoomId(savedRoomId);
+      } else {
+        // Fallback to the user's requested default room API bin
+        setRoomId('d5590d7a9d5aeceb4195');
       }
     }
   }, []);
