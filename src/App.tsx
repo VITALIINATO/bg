@@ -378,33 +378,36 @@ export default function App() {
       const spot = freshState.spots.find((s) => s.id === spotId);
       if (!spot) throw new Error('Геоточка не найдена.');
 
-      const isCurrentlyThere = freshState.presence.some(
-        (p) => p.userId === userId && p.spotId === spotId
-      );
+      // Check if ANYONE is currently checked in at this spot
+      const presencesAtThisSpot = freshState.presence.filter((p) => p.spotId === spotId);
+      const isAnyUserAtThisSpot = presencesAtThisSpot.length > 0;
 
       let nextPresence = [...freshState.presence];
       let nextHistory = [...freshState.history];
 
       // Format event details
       const nowString = new Date().toISOString();
-      const eventId = 'ev-' + generateId();
 
-      if (isCurrentlyThere) {
-        // --- CHECK OUT ---
-        nextPresence = nextPresence.filter((p) => !(p.userId === userId && p.spotId === spotId));
+      if (isAnyUserAtThisSpot) {
+        // --- REMOVE ALL MARKS AT THIS SPOT (Leave 'nobody' / 'никого') ---
+        nextPresence = nextPresence.filter((p) => p.spotId !== spotId);
         
-        const newEvent: HistoryEvent = {
-          id: eventId,
-          userId,
-          userName,
-          spotId,
-          spotName: spot.name,
-          type: 'check-out',
-          timestamp: nowString
-        };
-        nextHistory = [newEvent, ...nextHistory].slice(0, 150); // Keep last 150 events
+        // Log check-out events for history for everyone who was checked in at this spot
+        for (const presenceUser of presencesAtThisSpot) {
+          const checkOutEvent: HistoryEvent = {
+            id: 'ev-' + generateId(),
+            userId: presenceUser.userId,
+            userName: presenceUser.userName,
+            spotId,
+            spotName: spot.name,
+            type: 'check-out',
+            timestamp: nowString
+          };
+          nextHistory = [checkOutEvent, ...nextHistory];
+        }
+        nextHistory = nextHistory.slice(0, 150); // Keep last 150 events
       } else {
-        // --- CHECK IN ---
+        // --- CHECK IN ON EMPTY SPOT ---
         // A user can only be at ONE spot at a time. If they are somewhere else, automatically check them out from there first!
         const existingPresences = nextPresence.filter((p) => p.userId === userId);
         
@@ -422,10 +425,10 @@ export default function App() {
           nextHistory = [checkOutEvent, ...nextHistory];
         }
 
-        // Remove previous presence entirely
+        // Remove previous presence entirely for the current user
         nextPresence = nextPresence.filter((p) => p.userId !== userId);
 
-        // Add new check-in presence
+        // Add new check-in presence for the current group
         nextPresence.push({
           userId,
           userName,
@@ -435,7 +438,7 @@ export default function App() {
 
         // Add check-in event
         const checkInEvent: HistoryEvent = {
-          id: eventId,
+          id: 'ev-' + generateId(),
           userId,
           userName,
           spotId,
@@ -999,17 +1002,6 @@ export default function App() {
                                   <span className="shrink-0">📍</span>
                                   <span className="truncate">{spot.name}</span>
                                 </h3>
-                                
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteSpot(spot.id, e);
-                                  }}
-                                  className="p-1 text-slate-300 hover:text-rose-500 hover:bg-slate-100 rounded transition-colors shrink-0"
-                                  title="Удалить эту геоточку"
-                                >
-                                  <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                </button>
                               </div>
 
                               {/* Two Indicators as requested */}
@@ -1059,7 +1051,7 @@ export default function App() {
                                   ID: {spot.id.slice(0, 4)}...
                                 </span>
                                 <span className="text-slate-400 font-bold uppercase tracking-tight group-hover:text-blue-500 transition-colors truncate max-w-full">
-                                  {isCurrentUserThere ? 'Снять' : 'Отметить'}
+                                  {usersAtSpot.length > 0 ? 'Убрать отметку' : 'Отметиться'}
                                 </span>
                               </div>
                             </div>
