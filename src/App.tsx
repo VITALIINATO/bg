@@ -1,3 +1,6 @@
+// 📌 НАСТРОЙКА КАРТОЧЕК МЕСТ (НАЗВАНИЙ ТОЧЕК):
+// Чтобы изменить названия мест, отредактируйте массив DEFAULT_SPOTS в файле /src/lib/api.ts !
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Spot, UserPresence, RoomState, HistoryEvent, ActiveUser } from './types';
 import {
@@ -637,8 +640,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-[11px] sm:text-sm font-black tracking-wider uppercase flex items-center gap-2">
-              <span className="inline xs:hidden">GeoSync</span>
-              <span className="hidden xs:inline">GeoSync Collective</span>
+              <span>BG-now</span>
             </h1>
             <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono hidden xs:block">
               {roomId ? `API: npoint.io/bin/${roomId.slice(0, 10)}` : 'API: npoint.io/v1/collective'}
@@ -713,7 +715,7 @@ export default function App() {
                 <Compass className="w-6 h-6 text-blue-500" />
               </div>
               <h2 className="text-base font-bold text-slate-900 tracking-tight text-center uppercase">
-                GeoSync Collective Setup
+                BG-now Setup
               </h2>
               <p className="text-xs text-slate-500 mt-1 text-center max-w-xs mx-auto leading-relaxed">
                 Введите имя вашей группы для мгновенного развертывания коллективного трекера или присоединитесь к существующему узлу.
@@ -1033,68 +1035,34 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Controls / Quick Action Footer (Only if connected) */}
+      {/* Bottom Controls / Sync Info (Only if connected) */}
       {roomId && roomState && (
         <footer className="bg-white border-t border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-lg">
-          <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center sm:text-left">
-              Быстрый репорт местоположения
-            </span>
-            <div className="flex sm:flex-wrap gap-1.5 justify-start overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-              {roomState.spots.slice(0, 4).map((spot) => {
-                const isThere = roomState.presence.some(p => p.userId === userId && p.spotId === spot.id);
-                return (
-                  <button
-                    key={spot.id}
-                    onClick={() => handleTogglePresence(spot.id)}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded transition-all uppercase whitespace-nowrap shrink-0 ${
-                      isThere 
-                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs' 
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    {isThere ? `Покинуть: ${spot.name}` : `Я в: ${spot.name}`}
-                  </button>
-                );
-              })}
-              {currentUserSpot && (
-                <button
-                  onClick={() => handleTogglePresence(currentUserSpot.id)}
-                  className="px-3 py-1.5 border border-slate-300 text-rose-600 text-[11px] font-bold rounded hover:bg-rose-50 whitespace-nowrap shrink-0"
-                >
-                  Сняться<span className="hidden xs:inline"> со всех точек</span>
-                </button>
-              )}
-            </div>
+          <div className="text-left">
+            <p className="text-[10px] text-slate-400">Автосинхронизация включена</p>
+            <p className="text-xs font-mono text-slate-600 flex items-center gap-1.5 justify-center sm:justify-start">
+              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isSyncing ? 'animate-ping' : ''}`}></span>
+              <span>Синхронизация через: <strong>{countdown}с</strong></span>
+            </p>
           </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={syncData}
+              disabled={isSyncing}
+              className="p-2.5 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center"
+              title="Принудительная синхронизация"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            </button>
 
-          <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0">
-            <div className="text-left sm:text-right">
-              <p className="text-[10px] text-slate-400">Автосинхронизация включена</p>
-              <p className="text-xs font-mono text-slate-600 flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isSyncing ? 'animate-ping' : ''}`}></span>
-                <span>Синхронизация через: <strong>{countdown}с</strong></span>
-              </p>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={syncData}
-                disabled={isSyncing}
-                className="p-2.5 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center"
-                title="Принудительная синхронизация"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              </button>
-
-              <button
-                onClick={handleLeaveRoom}
-                className="p-2.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-full hover:bg-rose-100 transition-colors"
-                title="Выйти из этой группы"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={handleLeaveRoom}
+              className="p-2.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-full hover:bg-rose-100 transition-colors"
+              title="Выйти из этой группы"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </footer>
       )}
@@ -1102,7 +1070,7 @@ export default function App() {
       {/* Small informative baseline footer */}
       {!roomId && (
         <footer className="bg-white border-t border-slate-100 py-3.5 text-center text-[11px] text-slate-400 font-mono">
-          © 2026 GeoSync Collective • Синхронизация через api.npoint.io • Развертывание в реальном времени
+          © 2026 BG-now • Синхронизация через api.npoint.io • Развертывание в реальном времени
         </footer>
       )}
 
