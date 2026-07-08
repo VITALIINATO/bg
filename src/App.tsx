@@ -939,86 +939,91 @@ export default function App() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-4">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
                       {roomState?.spots && roomState.spots.length > 0 ? (
-                        roomState.spots.map((spot) => {
-                          const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id);
-                          const isCurrentUserThere = usersAtSpot.some(u => u.userId === userId);
-                          const isSelected = selectedSpotId === spot.id;
+                        [...roomState.spots]
+                          .sort((a, b) => {
+                            const aOccupied = roomState.presence.some(p => p.spotId === a.id);
+                            const bOccupied = roomState.presence.some(p => p.spotId === b.id);
+                            if (aOccupied && !bOccupied) return -1;
+                            if (!aOccupied && bOccupied) return 1;
+                            return 0;
+                          })
+                          .map((spot) => {
+                            const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id);
+                            const isCurrentUserThere = usersAtSpot.some(u => u.userId === userId);
+                            const isSelected = selectedSpotId === spot.id;
 
-                          // Dynamic card border highlight if current user is checked-in there (as in design html)
-                          const cardStyle = isCurrentUserThere
-                            ? 'border-2 border-emerald-500 bg-white'
-                            : isSelected
-                            ? 'border-2 border-blue-500 bg-white shadow-md'
-                            : 'border border-slate-200 bg-white hover:border-slate-300';
+                            // ⚡️ Dynamic card styling with maximum visual contrast as requested!
+                            const cardStyle = isCurrentUserThere
+                              ? 'border-2 border-emerald-600 bg-emerald-50 shadow-md ring-2 ring-emerald-500/10'
+                              : usersAtSpot.length > 0
+                              ? 'border-2 border-amber-500 bg-amber-50 shadow-md animate-pulse-subtle'
+                              : isSelected
+                              ? 'border-2 border-blue-500 bg-white shadow-sm'
+                              : 'border border-slate-200 bg-slate-50/30 hover:border-slate-300 hover:bg-white';
 
-                          return (
-                            <div
-                              key={spot.id}
-                              onClick={() => handleTogglePresence(spot.id)}
-                              className={`${cardStyle} rounded-lg sm:rounded-xl p-2.5 sm:p-4 shadow-xs flex flex-col relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
-                            >
-                              <div className="flex justify-between items-start mb-1 sm:mb-2 min-w-0">
-                                <h3 className="text-xs sm:text-base md:text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-1 min-w-0">
-                                  <span className="shrink-0">📍</span>
-                                  <span className="truncate">{spot.name}</span>
-                                </h3>
-                              </div>
+                            return (
+                              <div
+                                key={spot.id}
+                                onClick={() => handleTogglePresence(spot.id)}
+                                className={`${cardStyle} rounded-lg sm:rounded-xl p-2 sm:p-3.5 shadow-xs flex flex-col relative transition-all duration-200 cursor-pointer group hover:shadow-md min-h-[110px] sm:min-h-[140px]`}
+                              >
+                                <div className="flex justify-between items-start mb-1 sm:mb-2 min-w-0">
+                                  <h3 className="text-[10px] sm:text-xs md:text-sm font-black text-slate-950 uppercase tracking-tight flex items-center gap-1 min-w-0 leading-tight">
+                                    <span className="shrink-0">📍</span>
+                                    <span className="truncate">{spot.name}</span>
+                                  </h3>
+                                </div>
 
-                              {/* Two Indicators as requested */}
-                              <div className="space-y-1 sm:space-y-2 mt-1 flex-1">
-                                {/* Indicator 1: Green or Red presence status dot */}
-                                <div className="flex items-center gap-1.5">
-                                  {usersAtSpot.length > 0 ? (
-                                    <>
-                                      <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block shrink-0"></span>
-                                      <span className="text-[10px] sm:text-xs font-black text-emerald-700 uppercase tracking-tight">На месте</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-rose-500 inline-block shrink-0"></span>
-                                      <span className="text-[10px] sm:text-xs font-black text-rose-600 uppercase tracking-tight animate-none">Никого</span>
-                                    </>
+                                {/* Two Indicators as requested */}
+                                <div className="space-y-1 sm:space-y-2 mt-1 flex-1">
+                                  {/* Indicator 1: Green or Red presence status dot */}
+                                  <div className="flex items-center gap-1">
+                                    {usersAtSpot.length > 0 ? (
+                                      <>
+                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-600 animate-pulse inline-block shrink-0"></span>
+                                        <span className="text-[8px] sm:text-[10px] font-black text-emerald-800 uppercase tracking-tight">Занято</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 inline-block shrink-0"></span>
+                                        <span className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-tight">Никого</span>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Indicator 2: Travelers name (visible only if someone is on site) */}
+                                  {usersAtSpot.length > 0 && (
+                                    <div className="text-[9px] sm:text-xs text-slate-700 font-medium pt-0.5">
+                                      <div className="flex flex-col gap-1 mt-1">
+                                        {usersAtSpot.map((presenceUser) => (
+                                          <span
+                                            key={presenceUser.userId}
+                                            className={`px-1.5 py-1 rounded text-[8px] sm:text-[10px] font-black text-center uppercase tracking-tight shadow-xs border ${
+                                              presenceUser.userId === userId
+                                                ? 'bg-emerald-600 text-white border-emerald-700 animate-pulse'
+                                                : 'bg-blue-600 text-white border-blue-700'
+                                            } truncate max-w-full`}
+                                            title={presenceUser.userName}
+                                          >
+                                            {presenceUser.userName} {presenceUser.userId === userId && '👤'}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
 
-                                {/* Indicator 2: Travelers name (visible only if someone is on site) */}
-                                {usersAtSpot.length > 0 && (
-                                  <div className="text-[10px] sm:text-xs text-slate-700 font-medium pt-0.5">
-                                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px] tracking-wider block mb-0.5 sm:mb-1">
-                                      {usersAtSpot.length === 1 ? 'Путник' : 'Путники'}:
-                                    </span>
-                                    <div className="flex flex-wrap gap-1">
-                                      {usersAtSpot.map((presenceUser) => (
-                                        <span
-                                          key={presenceUser.userId}
-                                          className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[11px] font-bold ${
-                                            presenceUser.userId === userId
-                                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                              : 'bg-slate-100 text-slate-800 border border-slate-200'
-                                          } truncate max-w-full`}
-                                        >
-                                          {presenceUser.userName.split(' ')[0]} {presenceUser.userId === userId && '*'}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                {/* Bottom divider and info */}
+                                <div className="flex items-center justify-between border-t border-slate-200/60 pt-1.5 mt-2 text-[8px] sm:text-[10px]">
+                                  <span className="text-slate-400 font-black uppercase tracking-tight group-hover:text-blue-500 transition-colors truncate max-w-full w-full text-center">
+                                    {usersAtSpot.length > 0 ? 'Убрать отметку' : 'Отметиться'}
+                                  </span>
+                                </div>
                               </div>
-
-                              {/* Bottom divider and info */}
-                              <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 mt-2.5 text-[8px] sm:text-[10px]">
-                                <span className="font-mono text-slate-300 hidden sm:inline">
-                                  ID: {spot.id.slice(0, 4)}...
-                                </span>
-                                <span className="text-slate-400 font-bold uppercase tracking-tight group-hover:text-blue-500 transition-colors truncate max-w-full">
-                                  {usersAtSpot.length > 0 ? 'Убрать отметку' : 'Отметиться'}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })
+                            );
+                          })
                       ) : (
                         <div className="col-span-full bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400">
                           <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
