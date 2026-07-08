@@ -270,11 +270,12 @@ export default function App() {
       }
     } catch (err: any) {
       console.error(err);
-      setError('Не удалось загрузить данные группы. Проверьте ID или создайте новую группу.');
-      // If room not found/invalid, clear local last room
       if (showSpinner) {
+        setError('Не удалось загрузить данные группы. Проверьте ID или создайте новую группу.');
         setRoomId(null);
         localStorage.removeItem('coloc_last_room');
+      } else {
+        console.warn('Background sync failed silently. Will retry on next interval.');
       }
     } finally {
       if (showSpinner) setIsLoading(false);
@@ -862,7 +863,7 @@ export default function App() {
                 <div className="flex gap-2">
                   <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-slate-500 leading-normal">
-                    <strong>Синхронизация npoint:</strong> все отметки и изменения в реальном времени сохраняются в облаке и транслируются вашей команде. Ссылка-приглашение содержит код доступа.
+                    <strong>Мгновенная синхронизация:</strong> все отметки и изменения в реальном времени сохраняются в базе данных и транслируются вашей команде. Ссылка-приглашение содержит код доступа.
                   </p>
                 </div>
               </div>
