@@ -4,6 +4,7 @@ const BASE_URL = 'https://api.npoint.io';
 
 // Default initial state for a newly created room
 export const DEFAULT_SPOTS = [
+  { id: 'spot-ppd', name: 'ППД', description: 'Пункт постоянной дислокации', x: 50, y: 50 },
   { id: 'spot-1', name: 'ЦУМ', description: 'Центральный универсальный магазин (главный вход)', x: 35, y: 30 },
   { id: 'spot-2', name: 'Вокзал', description: 'Главный железнодорожный вокзал (у часов)', x: 70, y: 25 },
   { id: 'spot-3', name: 'Парк', description: 'Центральный городской парк (у фонтана)', x: 50, y: 70 },
