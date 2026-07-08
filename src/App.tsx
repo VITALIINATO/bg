@@ -347,71 +347,47 @@ export default function App() {
   };
 
   // Select group handler
-  const handleSelectGroup = (groupName: string) => {
-    setPendingGroup(groupName);
-    setPasswordInput('');
-    setPasswordError(null);
-  };
+  const handleSelectGroup = async (groupName: string) => {
+    setSelectedGroup(groupName);
+    setUserName(groupName);
+    setTempName(groupName);
+    localStorage.setItem('coloc_selected_group', groupName);
+    localStorage.setItem('coloc_username', groupName);
+    setShowGroupSelector(false);
 
-  const handleConfirmPassword = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!pendingGroup) return;
+    // If already in a room, synchronize the name change
+    if (roomId && roomState) {
+      setIsSaving(true);
+      try {
+        const updatedUsers = roomState.users.map((u) =>
+          u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
+        );
+        // Also update the presence list names
+        const updatedPresence = roomState.presence.map((p) =>
+          p.userId === userId ? { ...p, userName: groupName } : p
+        );
 
-    const correctPassword = getGroupPassword(pendingGroup);
-    if (passwordInput === correctPassword) {
-      const groupName = pendingGroup;
-      setSelectedGroup(groupName);
-      setUserName(groupName);
-      setTempName(groupName);
-      localStorage.setItem('coloc_selected_group', groupName);
-      localStorage.setItem('coloc_username', groupName);
-      setShowGroupSelector(false);
-      setPendingGroup(null);
-      setPasswordInput('');
-      setPasswordError(null);
+        const nextState = {
+          ...roomState,
+          users: updatedUsers,
+          presence: updatedPresence
+        };
 
-      // If already in a room, synchronize the name change
-      if (roomId && roomState) {
-        setIsSaving(true);
-        try {
-          const updatedUsers = roomState.users.map((u) =>
-            u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
-          );
-          // Also update the presence list names
-          const updatedPresence = roomState.presence.map((p) =>
-            p.userId === userId ? { ...p, userName: groupName } : p
-          );
-
-          const nextState = {
-            ...roomState,
-            users: updatedUsers,
-            presence: updatedPresence
-          };
-
-          setRoomState(nextState);
-          await updateRoomState(roomId, nextState);
-        } catch (err) {
-          console.error('Failed to update group name in room:', err);
-        } finally {
-          setIsSaving(false);
-        }
+        setRoomState(nextState);
+        await updateRoomState(roomId, nextState);
+      } catch (err) {
+        console.error('Failed to update group name in room:', err);
+      } finally {
+        setIsSaving(false);
       }
-    } else {
-      setPasswordError('Неверный пароль. Попробуйте еще раз.');
     }
   };
 
-  // Leave current room
+  // Leave current room / group
   const handleLeaveRoom = () => {
-    stopTimers();
-    setRoomId(null);
-    setRoomState(null);
-    localStorage.removeItem('coloc_last_room');
-    
-    // Clear URL parameter
-    const url = new URL(window.location.href);
-    url.searchParams.delete('room');
-    window.history.replaceState({}, '', url.toString());
+    setSelectedGroup(null);
+    localStorage.removeItem('coloc_selected_group');
+    setShowGroupSelector(true);
   };
 
   // CHECK-IN / CHECK-OUT Core Logic
@@ -788,86 +764,10 @@ export default function App() {
           </div>
         )}
 
-        {/* Setup Screen / Join & Create Form (if not logged into any group) */}
-        {!roomId ? (
-          <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full py-10">
-            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-md w-full">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto mb-4">
-                <Compass className="w-6 h-6 text-blue-500" />
-              </div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight text-center uppercase">
-                BG-now Setup
-              </h2>
-              <p className="text-xs text-slate-500 mt-1 text-center max-w-xs mx-auto leading-relaxed">
-                Введите имя вашей группы для мгновенного развертывания коллективного трекера или присоединитесь к существующему узлу.
-              </p>
-
-              <hr className="my-5 border-slate-100" />
-
-              {/* Action 1: Create room */}
-              <div className="space-y-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Создать новый узел группы
-                </label>
-                <form onSubmit={handleCreateRoom} className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Например: Пятничный маршрут, Сбор"
-                    value={newRoomName}
-                    onChange={(e) => setNewRoomName(e.target.value)}
-                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white font-medium placeholder:text-slate-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
-                  >
-                    {isLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                    <span>Создать</span>
-                  </button>
-                </form>
-              </div>
-
-              <div className="relative my-5 text-center">
-                <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-100"></span>
-                <span className="relative bg-white px-3 text-[9px] text-slate-400 font-bold uppercase tracking-widest">или</span>
-              </div>
-
-              {/* Action 2: Join room */}
-              <div className="space-y-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Присоединиться по ID
-                </label>
-                <form onSubmit={handleJoinRoom} className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Вставьте ID контейнера (например: b53f19)"
-                    value={inputRoomId}
-                    onChange={(e) => setInputRoomId(e.target.value)}
-                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white placeholder:text-slate-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputRoomId.trim()}
-                    className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded hover:bg-slate-900 transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>Войти</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </div>
-
-              <div className="bg-slate-50 p-3 rounded border border-slate-200 mt-5">
-                <div className="flex gap-2">
-                  <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-slate-500 leading-normal">
-                    <strong>Мгновенная синхронизация:</strong> все отметки и изменения в реальном времени сохраняются в базе данных и транслируются вашей команде. Ссылка-приглашение содержит код доступа.
-                  </p>
-                </div>
-              </div>
-            </div>
+        {isLoading && !roomState ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 w-full">
+            <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Загрузка данных...</p>
           </div>
         ) : (
           /* Connected State: Three column High-Density workspace */
@@ -1320,90 +1220,26 @@ export default function App() {
               )}
             </div>
 
-            {/* Content */}
-            {pendingGroup ? (
-              /* Password verification sub-screen */
-              <div className="p-6 flex flex-col gap-4 animate-in fade-in duration-200">
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-                    Вход в {pendingGroup}
-                  </h3>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Для продолжения необходимо ввести пароль этой группы
-                  </p>
-                </div>
-
-                <form onSubmit={handleConfirmPassword} className="space-y-4">
-                  <div>
-                    <input
-                      type="password"
-                      autoFocus
-                      required
-                      placeholder="Введите 8-значный пароль"
-                      value={passwordInput}
-                      onChange={(e) => {
-                        setPasswordInput(e.target.value);
-                        setPasswordError(null);
-                      }}
-                      className="w-full px-3 py-2.5 text-center text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400"
-                    />
-                    {passwordError && (
-                      <p className="text-[10px] text-rose-500 font-semibold mt-1.5 text-center">
-                        ⚠️ {passwordError}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPendingGroup(null);
-                        setPasswordInput('');
-                        setPasswordError(null);
-                      }}
-                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                    >
-                      Назад
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
-                    >
-                      Войти
-                    </button>
-                  </div>
-                </form>
-
-                <div className="text-[9px] text-slate-400 text-center font-mono mt-2 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
-                  💡 Пароль для Группы 1: <code className="font-bold text-slate-600 bg-slate-200 px-1 py-0.5 rounded">11111111</code>, Группы 23: <code className="font-bold text-slate-600 bg-slate-200 px-1 py-0.5 rounded">23232323</code>, Группы 3: <code className="font-bold text-slate-600 bg-slate-200 px-1 py-0.5 rounded">33333333</code>
-                </div>
-              </div>
-            ) : (
-              /* Content - Grid of groups */
-              <div className="p-4 overflow-y-auto flex-1 grid grid-cols-2 gap-2.5 scrollbar-none">
-                {AVAILABLE_GROUPS.map((group) => {
-                  const isSelected = selectedGroup === group;
-                  return (
-                    <button
-                      key={group}
-                      onClick={() => handleSelectGroup(group)}
-                      className={`py-3.5 px-3 rounded-xl text-xs font-black tracking-tight transition-all duration-200 uppercase text-center flex flex-col items-center justify-center gap-1 cursor-pointer border ${
-                        isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <span className="text-[14px]">👥</span>
-                      <span>{group}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {/* Content - Grid of groups */}
+            <div className="p-4 overflow-y-auto flex-1 grid grid-cols-2 gap-2.5 scrollbar-none">
+              {AVAILABLE_GROUPS.map((group) => {
+                const isSelected = selectedGroup === group;
+                return (
+                  <button
+                    key={group}
+                    onClick={() => handleSelectGroup(group)}
+                    className={`py-3.5 px-3 rounded-xl text-xs font-black tracking-tight transition-all duration-200 uppercase text-center flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-[14px]">👥</span>
+                    <span>{group}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-[9px] text-slate-400 font-medium font-mono shrink-0">
