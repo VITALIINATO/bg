@@ -90,16 +90,12 @@ export default function App() {
   const [editingSpotName, setEditingSpotName] = useState<string>('');
 
   // --- Room & Connection State ---
-  const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<string>('d5590d7a9d5aeceb4195');
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Creation States ---
-  const [newRoomName, setNewRoomName] = useState<string>('');
-  const [inputRoomId, setInputRoomId] = useState<string>('');
-  
   // --- Spot Addition State ---
   const [isAddingSpot, setIsAddingSpot] = useState<boolean>(false);
   const [newSpotCoords, setNewSpotCoords] = useState<{ x: number; y: number } | null>(null);
@@ -141,38 +137,12 @@ export default function App() {
       setTempName('Группа не выбрана');
     }
 
-    // 2. Check URL for room code ?room=YOUR_ID or hash
-    const params = new URLSearchParams(window.location.search);
-    const urlRoom = params.get('room') || window.location.hash.replace('#', '');
-    
-    if (urlRoom) {
-      setRoomId(urlRoom);
-    } else {
-      const savedRoomId = localStorage.getItem('coloc_last_room');
-      if (savedRoomId) {
-        setRoomId(savedRoomId);
-      } else {
-        // Fallback to the user's requested default room API bin
-        setRoomId('d5590d7a9d5aeceb4195');
-      }
-    }
+    // Always keep unified session room ID
+    setRoomId('d5590d7a9d5aeceb4195');
   }, []);
 
   // 3. Load room state whenever roomId changes
   useEffect(() => {
-    if (!roomId) {
-      setRoomState(null);
-      return;
-    }
-
-    // Save to local storage as last room
-    localStorage.setItem('coloc_last_room', roomId);
-    
-    // Update URL query parameter without reloading
-    const url = new URL(window.location.href);
-    url.searchParams.set('room', roomId);
-    window.history.replaceState({}, '', url.toString());
-
     loadRoomData(roomId, true);
   }, [roomId]);
 
@@ -271,41 +241,12 @@ export default function App() {
     } catch (err: any) {
       console.error(err);
       if (showSpinner) {
-        setError('Не удалось загрузить данные группы. Проверьте ID или создайте новую группу.');
-        setRoomId(null);
-        localStorage.removeItem('coloc_last_room');
+        setError('Не удалось загрузить данные группы. Пожалуйста, проверьте интернет-соединение.');
       } else {
         console.warn('Background sync failed silently. Will retry on next interval.');
       }
     } finally {
       if (showSpinner) setIsLoading(false);
-    }
-  };
-
-  // Create room handler
-  const handleCreateRoom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const title = newRoomName.trim() || 'Наша Компания';
-    setIsLoading(true);
-    setError(null);
-    try {
-      const newId = await createRoom(title);
-      setRoomId(newId);
-      setNewRoomName('');
-    } catch (err) {
-      setError('Не удалось создать комнату на сервере. Пожалуйста, попробуйте снова.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Join room handler
-  const handleJoinRoom = (e: React.FormEvent) => {
-    e.preventDefault();
-    const targetId = inputRoomId.trim();
-    if (targetId) {
-      setRoomId(targetId);
-      setInputRoomId('');
     }
   };
 
@@ -850,27 +791,12 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Compact Quick Link Card */}
-                <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 text-[10px] space-y-2">
-                  <p className="text-slate-500 leading-normal font-medium">
-                    <strong>ID Узла:</strong> <span className="font-mono bg-white px-1 py-0.5 border border-slate-200 rounded">{roomId}</span>
+                {/* Compact Database Sync Status */}
+                <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 text-[10px]">
+                  <p className="text-slate-500 leading-normal font-semibold text-center flex items-center justify-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                    <span>Общая сессия активна</span>
                   </p>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={copyRoomLink}
-                      className="flex-1 py-1 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center gap-1 active:scale-95 transition-all text-[9px]"
-                    >
-                      <Share2 className="w-2.5 h-2.5 text-blue-500" />
-                      <span>{copiedLink ? 'Скопировано!' : 'Копировать Ссылку'}</span>
-                    </button>
-                    <button
-                      onClick={copyRoomId}
-                      className="py-1 px-2 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center active:scale-95 transition-all text-[9px]"
-                      title="Скопировать ID комнаты"
-                    >
-                      {copiedId ? 'Copied' : <Copy className="w-2.5 h-2.5" />}
-                    </button>
-                  </div>
                 </div>
               </div>
             </aside>
