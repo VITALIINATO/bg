@@ -7,7 +7,6 @@ import {
   DEFAULT_SPOTS,
   createInitialState
 } from './lib/api';
-import MapBoard from './components/MapBoard';
 import AddSpotForm from './components/AddSpotForm';
 import {
   MapPin,
@@ -875,90 +874,15 @@ export default function App() {
               </div>
             </aside>
 
-            {/* COLUMN 2: Center Grid: Geo Points + Tabs */}
+            {/* COLUMN 2: Center Grid: Geo Points */}
             <section className="flex-1 flex flex-col gap-3 min-w-0 order-1 lg:order-2">
               
-              {/* Center switcher / title */}
-              <div className="bg-white p-2.5 border border-slate-200 rounded-lg shrink-0 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    {roomState?.roomName || 'Синхронизируемый трекер'}
-                  </span>
-                </div>
-
-                {/* Tab switchers to change layout view mode */}
-                <div className="flex bg-slate-100 p-0.5 rounded border border-slate-200">
-                  <button
-                    onClick={() => setViewMode('cards')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-all ${
-                      viewMode === 'cards' 
-                        ? 'bg-white text-slate-900 shadow-xs' 
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    Карточки точек
-                  </button>
-                  <button
-                    onClick={() => setViewMode('map')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-all ${
-                      viewMode === 'map' 
-                        ? 'bg-white text-slate-900 shadow-xs' 
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    Интерактивная карта
-                  </button>
-                </div>
-              </div>
-
               {/* View Content area */}
               <div className="flex-1 overflow-y-auto">
                 {isLoading ? (
                   <div className="h-full flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg p-10">
                     <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
                     <p className="text-xs text-slate-400 mt-2 font-mono">Обновление базы...</p>
-                  </div>
-                ) : viewMode === 'map' ? (
-                  /* TAB: Interactive map coordinate layout */
-                  <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm h-full flex flex-col min-h-[400px]">
-                    <div className="flex-1">
-                      <MapBoard
-                        spots={roomState?.spots || []}
-                        presence={roomState?.presence || []}
-                        currentUserId={userId}
-                        onSelectSpot={(spot) => {
-                          setSelectedSpotId(spot.id);
-                          setViewMode('cards'); // Switch back to cards for check-in action
-                        }}
-                        selectedSpotId={selectedSpotId || undefined}
-                        isAddingSpotMode={isAddingSpot}
-                        onMapClickForCoords={(x, y) => {
-                          setNewSpotCoords({ x, y });
-                        }}
-                        newSpotCoords={newSpotCoords}
-                      />
-                    </div>
-                    {isAddingSpot ? (
-                      <div className="mt-4 border-t pt-3">
-                        <AddSpotForm
-                          onAddSpot={handleAddCustomSpot}
-                          onCancel={() => {
-                            setIsAddingSpot(false);
-                            setNewSpotCoords(null);
-                          }}
-                          selectedCoords={newSpotCoords}
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setIsAddingSpot(true)}
-                        className="mt-3 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded flex items-center justify-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Добавить новую точку на карту</span>
-                      </button>
-                    )}
                   </div>
                 ) : (
                   /* TAB: Location High Density Cards */
