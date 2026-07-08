@@ -68,6 +68,8 @@ export default function App() {
   const [countdown, setCountdown] = useState<number>(10);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
+  const [isParticipantsExpanded, setIsParticipantsExpanded] = useState<boolean>(false);
+  const [isActivityExpanded, setIsActivityExpanded] = useState<boolean>(false);
 
   // --- Refs ---
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -570,16 +572,17 @@ export default function App() {
     <div className="w-full min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 overflow-x-hidden">
       
       {/* Top Navigation / Header */}
-      <header className="h-14 bg-[#1E293B] text-white flex items-center justify-between px-4 sm:px-6 shrink-0 shadow-md">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="bg-blue-500 p-1.5 rounded flex items-center justify-center">
-            <Compass className="w-5 h-5 text-white animate-spin-slow" />
+      <header className="h-14 bg-[#1E293B] text-white flex items-center justify-between px-3 sm:px-6 shrink-0 shadow-md">
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          <div className="bg-blue-500 p-1.5 rounded flex items-center justify-center shrink-0">
+            <Compass className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white animate-spin-slow" />
           </div>
           <div>
-            <h1 className="text-xs sm:text-sm font-black tracking-wider uppercase flex items-center gap-2">
-              GeoSync Collective
+            <h1 className="text-[11px] sm:text-sm font-black tracking-wider uppercase flex items-center gap-2">
+              <span className="inline xs:hidden">GeoSync</span>
+              <span className="hidden xs:inline">GeoSync Collective</span>
             </h1>
-            <p className="text-[10px] text-slate-400 font-mono hidden sm:block">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono hidden xs:block">
               {roomId ? `API: npoint.io/bin/${roomId.slice(0, 10)}` : 'API: npoint.io/v1/collective'}
             </p>
           </div>
@@ -597,17 +600,17 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {roomId && (
-            <div className="text-right hidden sm:block">
+            <div className="text-right flex flex-col justify-center">
               {isEditingName ? (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 z-50">
                   <input
                     type="text"
                     value={tempName}
                     onChange={(e) => setTempName(e.target.value)}
                     maxLength={15}
-                    className="px-2 py-0.5 text-[11px] text-slate-900 bg-white border border-slate-300 rounded font-medium focus:outline-none"
+                    className="w-18 xs:w-28 px-1.5 py-0.5 text-[10px] text-slate-900 bg-white border border-slate-300 rounded font-medium focus:outline-none"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSaveName();
                       if (e.key === 'Escape') {
@@ -619,18 +622,18 @@ export default function App() {
                   />
                   <button
                     onClick={handleSaveName}
-                    className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px]"
+                    className="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold"
                   >
                     ОК
                   </button>
                 </div>
               ) : (
-                <>
-                  <p className="text-[11px] font-black tracking-tight">{userName}</p>
-                  <p className="text-[10px] text-emerald-400 font-semibold">
-                    {currentUserSpot ? `На точке: ${currentUserSpot.name}` : 'Статус: Вне точек'}
+                <div className="flex flex-col">
+                  <p className="text-[10px] sm:text-[11px] font-black tracking-tight leading-tight max-w-[80px] xs:max-w-[120px] truncate">{userName}</p>
+                  <p className="text-[8px] sm:text-[10px] text-emerald-400 font-semibold leading-tight max-w-[80px] xs:max-w-[120px] truncate">
+                    {currentUserSpot ? `На точке: ${currentUserSpot.name}` : 'Вне точек'}
                   </p>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -642,7 +645,7 @@ export default function App() {
                 setIsEditingName(!isEditingName);
               }
             }}
-            className={`w-8 h-8 rounded-full bg-slate-600 border border-slate-500 flex items-center justify-center text-xs font-bold text-white cursor-pointer hover:bg-slate-500 transition-colors ${
+            className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-full bg-slate-600 border border-slate-500 flex items-center justify-center text-xs font-bold text-white cursor-pointer hover:bg-slate-500 transition-colors shrink-0 ${
               currentUserSpot ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-slate-900' : ''
             }`}
             title="Нажмите, чтобы настроить имя"
@@ -754,82 +757,92 @@ export default function App() {
           /* Connected State: Three column High-Density workspace */
           <>
             {/* COLUMN 1: Sidebar Group Status */}
-            <aside className="w-full lg:w-64 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden">
-              <div className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center shrink-0">
+            <aside className="w-full lg:w-64 order-2 lg:order-1 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
+              <div 
+                onClick={() => setIsParticipantsExpanded(!isParticipantsExpanded)}
+                className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center shrink-0 cursor-pointer lg:cursor-default"
+              >
                 <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-blue-500" />
                   <span>Участники Группы ({roomState?.users.length || 0})</span>
                 </h2>
-                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
-                  {roomState?.presence.length || 0} на месте
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
+                    {roomState?.presence.length || 0} на месте
+                  </span>
+                  <div className="lg:hidden">
+                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isParticipantsExpanded ? 'rotate-90' : ''}`} />
+                  </div>
+                </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[220px] lg:max-h-none">
-                {roomState?.users && roomState.users.length > 0 ? (
-                  roomState.users.map((user) => {
-                    const userPresence = roomState.presence.find(p => p.userId === user.id);
-                    const userSpot = userPresence ? roomState.spots.find(s => s.id === userPresence.spotId) : null;
-                    const isMe = user.id === userId;
+              <div className={`${isParticipantsExpanded ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'} flex-1`}>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[220px] lg:max-h-none">
+                  {roomState?.users && roomState.users.length > 0 ? (
+                    roomState.users.map((user) => {
+                      const userPresence = roomState.presence.find(p => p.userId === user.id);
+                      const userSpot = userPresence ? roomState.spots.find(s => s.id === userPresence.spotId) : null;
+                      const isMe = user.id === userId;
 
-                    return (
-                      <div
-                        key={user.id}
-                        className={`flex items-center justify-between p-2 rounded text-xs transition-all ${
-                          userSpot 
-                            ? isMe 
-                              ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium'
-                              : 'bg-blue-50 border border-blue-100 text-blue-900'
-                            : 'hover:bg-slate-50 border border-transparent text-slate-600'
-                        }`}
-                      >
-                        <span className="truncate flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${userSpot ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
-                          <span className="truncate">{user.name} {isMe && '(Вы)'}</span>
-                        </span>
-                        {userSpot ? (
-                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                            isMe ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
-                          } truncate max-w-[90px]`}>
-                            {userSpot.name}
+                      return (
+                        <div
+                          key={user.id}
+                          className={`flex items-center justify-between p-2 rounded text-xs transition-all ${
+                            userSpot 
+                              ? isMe 
+                                ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium'
+                                : 'bg-blue-50 border border-blue-100 text-blue-900'
+                              : 'hover:bg-slate-50 border border-transparent text-slate-600'
+                          }`}
+                        >
+                          <span className="truncate flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${userSpot ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                            <span className="truncate">{user.name} {isMe && '(Вы)'}</span>
                           </span>
-                        ) : (
-                          <span className="text-[9px] text-slate-400 font-mono">OFF-SITE</span>
-                        )}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-slate-400 italic text-center py-4">Список пуст</p>
-                )}
-              </div>
+                          {userSpot ? (
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                              isMe ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                            } truncate max-w-[90px]`}>
+                              {userSpot.name}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-400 font-mono">OFF-SITE</span>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-slate-400 italic text-center py-4">Список пуст</p>
+                  )}
+                </div>
 
-              {/* Compact Quick Link Card */}
-              <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 text-[10px] space-y-2">
-                <p className="text-slate-500 leading-normal font-medium">
-                  <strong>ID Узла:</strong> <span className="font-mono bg-white px-1 py-0.5 border border-slate-200 rounded">{roomId}</span>
-                </p>
-                <div className="flex gap-1">
-                  <button
-                    onClick={copyRoomLink}
-                    className="flex-1 py-1 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center gap-1 active:scale-95 transition-all text-[9px]"
-                  >
-                    <Share2 className="w-2.5 h-2.5 text-blue-500" />
-                    <span>{copiedLink ? 'Скопировано!' : 'Копировать Ссылку'}</span>
-                  </button>
-                  <button
-                    onClick={copyRoomId}
-                    className="py-1 px-2 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center active:scale-95 transition-all text-[9px]"
-                    title="Скопировать ID комнаты"
-                  >
-                    {copiedId ? 'Copied' : <Copy className="w-2.5 h-2.5" />}
-                  </button>
+                {/* Compact Quick Link Card */}
+                <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 text-[10px] space-y-2">
+                  <p className="text-slate-500 leading-normal font-medium">
+                    <strong>ID Узла:</strong> <span className="font-mono bg-white px-1 py-0.5 border border-slate-200 rounded">{roomId}</span>
+                  </p>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={copyRoomLink}
+                      className="flex-1 py-1 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center gap-1 active:scale-95 transition-all text-[9px]"
+                    >
+                      <Share2 className="w-2.5 h-2.5 text-blue-500" />
+                      <span>{copiedLink ? 'Скопировано!' : 'Копировать Ссылку'}</span>
+                    </button>
+                    <button
+                      onClick={copyRoomId}
+                      className="py-1 px-2 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded flex items-center justify-center active:scale-95 transition-all text-[9px]"
+                      title="Скопировать ID комнаты"
+                    >
+                      {copiedId ? 'Copied' : <Copy className="w-2.5 h-2.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </aside>
 
             {/* COLUMN 2: Center Grid: Geo Points + Tabs */}
-            <section className="flex-1 flex flex-col gap-3 min-w-0">
+            <section className="flex-1 flex flex-col gap-3 min-w-0 order-1 lg:order-2">
               
               {/* Center switcher / title */}
               <div className="bg-white p-2.5 border border-slate-200 rounded-lg shrink-0 flex items-center justify-between shadow-sm">
@@ -1046,14 +1059,20 @@ export default function App() {
             </section>
 
             {/* COLUMN 3: Right Side Activity Stream */}
-            <aside className="w-full lg:w-72 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden">
-              <div className="p-3 border-b border-slate-100 bg-[#F8FAFC]">
+            <aside className="w-full lg:w-72 order-3 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
+              <div 
+                onClick={() => setIsActivityExpanded(!isActivityExpanded)}
+                className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center cursor-pointer lg:cursor-default"
+              >
                 <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
                   <span>Лента активности (Live)</span>
                 </h2>
+                <div className="lg:hidden">
+                  <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isActivityExpanded ? 'rotate-90' : ''}`} />
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[220px] lg:max-h-none">
+              <div className={`${isActivityExpanded ? 'block' : 'hidden lg:block'} flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[220px] lg:max-h-none`}>
                 {roomState?.history && roomState.history.length > 0 ? (
                   roomState.history.map((ev) => renderHistoryItem(ev))
                 ) : (
@@ -1074,14 +1093,14 @@ export default function App() {
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center sm:text-left">
               Быстрый репорт местоположения
             </span>
-            <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start">
+            <div className="flex sm:flex-wrap gap-1.5 justify-start overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               {roomState.spots.slice(0, 4).map((spot) => {
                 const isThere = roomState.presence.some(p => p.userId === userId && p.spotId === spot.id);
                 return (
                   <button
                     key={spot.id}
                     onClick={() => handleTogglePresence(spot.id)}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded transition-all uppercase ${
+                    className={`px-3 py-1.5 text-[11px] font-bold rounded transition-all uppercase whitespace-nowrap shrink-0 ${
                       isThere 
                         ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs' 
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
@@ -1094,9 +1113,9 @@ export default function App() {
               {currentUserSpot && (
                 <button
                   onClick={() => handleTogglePresence(currentUserSpot.id)}
-                  className="px-3 py-1.5 border border-slate-300 text-rose-600 text-[11px] font-bold rounded hover:bg-rose-50"
+                  className="px-3 py-1.5 border border-slate-300 text-rose-600 text-[11px] font-bold rounded hover:bg-rose-50 whitespace-nowrap shrink-0"
                 >
-                  Сняться со всех точек
+                  Сняться<span className="hidden xs:inline"> со всех точек</span>
                 </button>
               )}
             </div>
