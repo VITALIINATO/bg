@@ -39,12 +39,29 @@ const generateId = (length: number = 8): string => {
   return Math.random().toString(36).substring(2, 2 + length);
 };
 
+const AVAILABLE_GROUPS = [
+  'Группа 1',
+  'Группа 3',
+  'Группа 4',
+  'Группа 5',
+  'Группа 6',
+  'Группа 7',
+  'Группа 8',
+  'Группа 14',
+  'Группа 15',
+  'Группа 18',
+  'Группа 19',
+  'Группа 23'
+];
+
 export default function App() {
   // --- User State ---
   const [userId, setUserId] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
   const [tempName, setTempName] = useState<string>('');
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [showGroupSelector, setShowGroupSelector] = useState<boolean>(false);
 
   // --- Room & Connection State ---
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -78,7 +95,7 @@ export default function App() {
   // 1. Initialize user from localStorage or generate new
   useEffect(() => {
     let savedUserId = localStorage.getItem('coloc_userid');
-    let savedUserName = localStorage.getItem('coloc_username');
+    const savedGroup = localStorage.getItem('coloc_selected_group');
 
     if (!savedUserId) {
       savedUserId = 'u-' + generateId();
@@ -86,15 +103,17 @@ export default function App() {
     }
     setUserId(savedUserId);
 
-    if (!savedUserName) {
-      // Pick a random funny nickname if none exists
-      const animals = ['Путник', 'Искатель', 'Компас', 'Радар', 'Навигатор', 'Следопыт'];
-      const num = Math.floor(Math.random() * 900) + 100;
-      savedUserName = `${animals[Math.floor(Math.random() * animals.length)]}_${num}`;
-      localStorage.setItem('coloc_username', savedUserName);
+    if (savedGroup && AVAILABLE_GROUPS.includes(savedGroup)) {
+      setSelectedGroup(savedGroup);
+      setUserName(savedGroup);
+      setTempName(savedGroup);
+      localStorage.setItem('coloc_username', savedGroup);
+    } else {
+      // If no valid group is selected, force show the group selector on load
+      setShowGroupSelector(true);
+      setUserName('Группа не выбрана');
+      setTempName('Группа не выбрана');
     }
-    setUserName(savedUserName);
-    setTempName(savedUserName);
 
     // 2. Check URL for room code ?room=YOUR_ID or hash
     const params = new URLSearchParams(window.location.search);
@@ -289,6 +308,43 @@ export default function App() {
         await updateRoomState(roomId, nextState);
       } catch (err) {
         console.error('Failed to update nickname in room:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  // Select group handler
+  const handleSelectGroup = async (groupName: string) => {
+    setSelectedGroup(groupName);
+    setUserName(groupName);
+    setTempName(groupName);
+    localStorage.setItem('coloc_selected_group', groupName);
+    localStorage.setItem('coloc_username', groupName);
+    setShowGroupSelector(false);
+
+    // If already in a room, synchronize the name change
+    if (roomId && roomState) {
+      setIsSaving(true);
+      try {
+        const updatedUsers = roomState.users.map((u) =>
+          u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
+        );
+        // Also update the presence list names
+        const updatedPresence = roomState.presence.map((p) =>
+          p.userId === userId ? { ...p, userName: groupName } : p
+        );
+
+        const nextState = {
+          ...roomState,
+          users: updatedUsers,
+          presence: updatedPresence
+        };
+
+        setRoomState(nextState);
+        await updateRoomState(roomId, nextState);
+      } catch (err) {
+        console.error('Failed to update group name in room:', err);
       } finally {
         setIsSaving(false);
       }
@@ -602,55 +658,30 @@ export default function App() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           {roomId && (
-            <div className="text-right flex flex-col justify-center">
-              {isEditingName ? (
-                <div className="flex items-center gap-1 z-50">
-                  <input
-                    type="text"
-                    value={tempName}
-                    onChange={(e) => setTempName(e.target.value)}
-                    maxLength={15}
-                    className="w-18 xs:w-28 px-1.5 py-0.5 text-[10px] text-slate-900 bg-white border border-slate-300 rounded font-medium focus:outline-none"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveName();
-                      if (e.key === 'Escape') {
-                        setTempName(userName);
-                        setIsEditingName(false);
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleSaveName}
-                    className="px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold"
-                  >
-                    ОК
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col">
-                  <p className="text-[10px] sm:text-[11px] font-black tracking-tight leading-tight max-w-[80px] xs:max-w-[120px] truncate">{userName}</p>
-                  <p className="text-[8px] sm:text-[10px] text-emerald-400 font-semibold leading-tight max-w-[80px] xs:max-w-[120px] truncate">
-                    {currentUserSpot ? `На точке: ${currentUserSpot.name}` : 'Вне точек'}
-                  </p>
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() => setShowGroupSelector(true)}
+              className="text-right flex flex-col justify-center cursor-pointer hover:bg-slate-700/60 px-2.5 py-1 rounded-lg border border-slate-700 transition-all text-white bg-slate-800/40 text-left"
+            >
+              <div className="flex flex-col">
+                <p className="text-[10px] sm:text-[11px] font-black tracking-tight leading-tight flex items-center gap-1">
+                  <span>{userName}</span>
+                  <Settings className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                </p>
+                <p className="text-[8px] sm:text-[10px] text-emerald-400 font-semibold leading-tight">
+                  {currentUserSpot ? `На точке: ${currentUserSpot.name}` : 'Вне точек'}
+                </p>
+              </div>
+            </button>
           )}
 
           <div 
-            onClick={() => {
-              if (roomId) {
-                setTempName(userName);
-                setIsEditingName(!isEditingName);
-              }
-            }}
-            className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-full bg-slate-600 border border-slate-500 flex items-center justify-center text-xs font-bold text-white cursor-pointer hover:bg-slate-500 transition-colors shrink-0 ${
+            onClick={() => setShowGroupSelector(true)}
+            className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-xs font-black text-white cursor-pointer hover:bg-blue-500 transition-colors shrink-0 ${
               currentUserSpot ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-slate-900' : ''
             }`}
-            title="Нажмите, чтобы настроить имя"
+            title="Нажмите для выбора группы"
           >
-            {userName ? userName.charAt(0).toUpperCase() : 'U'}
+            {userName && userName.startsWith('Группа ') ? userName.replace('Группа ', '') : 'G'}
           </div>
         </div>
       </header>
@@ -1157,6 +1188,61 @@ export default function App() {
         <footer className="bg-white border-t border-slate-100 py-3.5 text-center text-[11px] text-slate-400 font-mono">
           © 2026 GeoSync Collective • Синхронизация через api.npoint.io • Развертывание в реальном времени
         </footer>
+      )}
+
+      {/* Group Selection Overlay */}
+      {(showGroupSelector || !selectedGroup) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-sm font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span>Выбор вашей группы</span>
+                </h2>
+                <p className="text-[10px] text-slate-400 font-medium mt-1">
+                  Выберите группу, от имени которой вы будете отмечаться на точках
+                </p>
+              </div>
+              {selectedGroup && (
+                <button 
+                  onClick={() => setShowGroupSelector(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Content - Grid of groups */}
+            <div className="p-4 overflow-y-auto flex-1 grid grid-cols-2 gap-2.5 scrollbar-none">
+              {AVAILABLE_GROUPS.map((group) => {
+                const isSelected = selectedGroup === group;
+                return (
+                  <button
+                    key={group}
+                    onClick={() => handleSelectGroup(group)}
+                    className={`py-3.5 px-3 rounded-xl text-xs font-black tracking-tight transition-all duration-200 uppercase text-center flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-[14px]">👥</span>
+                    <span>{group}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-[9px] text-slate-400 font-medium font-mono shrink-0">
+              {selectedGroup && selectedGroup !== 'Группа не выбрана' ? `Текущий выбор: ${selectedGroup}` : 'Необходимо выбрать группу для продолжения'}
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
