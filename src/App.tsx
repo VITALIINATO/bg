@@ -346,40 +346,58 @@ export default function App() {
     }
   };
 
-  // Select group handler
-  const handleSelectGroup = async (groupName: string) => {
-    setSelectedGroup(groupName);
-    setUserName(groupName);
-    setTempName(groupName);
-    localStorage.setItem('coloc_selected_group', groupName);
-    localStorage.setItem('coloc_username', groupName);
-    setShowGroupSelector(false);
+  // Select group handler - sets pending group for password check
+  const handleSelectGroup = (groupName: string) => {
+    setPendingGroup(groupName);
+    setPasswordInput('');
+    setPasswordError(null);
+  };
 
-    // If already in a room, synchronize the name change
-    if (roomId && roomState) {
-      setIsSaving(true);
-      try {
-        const updatedUsers = roomState.users.map((u) =>
-          u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
-        );
-        // Also update the presence list names
-        const updatedPresence = roomState.presence.map((p) =>
-          p.userId === userId ? { ...p, userName: groupName } : p
-        );
+  const handleConfirmPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pendingGroup) return;
 
-        const nextState = {
-          ...roomState,
-          users: updatedUsers,
-          presence: updatedPresence
-        };
+    const correctPassword = getGroupPassword(pendingGroup);
+    if (passwordInput === correctPassword) {
+      const groupName = pendingGroup;
+      setSelectedGroup(groupName);
+      setUserName(groupName);
+      setTempName(groupName);
+      localStorage.setItem('coloc_selected_group', groupName);
+      localStorage.setItem('coloc_username', groupName);
+      setShowGroupSelector(false);
+      setPendingGroup(null);
+      setPasswordInput('');
+      setPasswordError(null);
 
-        setRoomState(nextState);
-        await updateRoomState(roomId, nextState);
-      } catch (err) {
-        console.error('Failed to update group name in room:', err);
-      } finally {
-        setIsSaving(false);
+      // If already in a room, synchronize the name change
+      if (roomId && roomState) {
+        setIsSaving(true);
+        try {
+          const updatedUsers = roomState.users.map((u) =>
+            u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
+          );
+          // Also update the presence list names
+          const updatedPresence = roomState.presence.map((p) =>
+            p.userId === userId ? { ...p, userName: groupName } : p
+          );
+
+          const nextState = {
+            ...roomState,
+            users: updatedUsers,
+            presence: updatedPresence
+          };
+
+          setRoomState(nextState);
+          await updateRoomState(roomId, nextState);
+        } catch (err) {
+          console.error('Failed to update group name in room:', err);
+        } finally {
+          setIsSaving(false);
+        }
       }
+    } else {
+      setPasswordError('Неверный пароль. Попробуйте еще раз.');
     }
   };
 
@@ -1220,26 +1238,86 @@ export default function App() {
               )}
             </div>
 
-            {/* Content - Grid of groups */}
-            <div className="p-4 overflow-y-auto flex-1 grid grid-cols-2 gap-2.5 scrollbar-none">
-              {AVAILABLE_GROUPS.map((group) => {
-                const isSelected = selectedGroup === group;
-                return (
-                  <button
-                    key={group}
-                    onClick={() => handleSelectGroup(group)}
-                    className={`py-3.5 px-3 rounded-xl text-xs font-black tracking-tight transition-all duration-200 uppercase text-center flex flex-col items-center justify-center gap-1 cursor-pointer border ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <span className="text-[14px]">👥</span>
-                    <span>{group}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Content */}
+            {pendingGroup ? (
+              /* Password verification sub-screen */
+              <div className="p-6 flex flex-col gap-4 animate-in fade-in duration-200">
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                    Вход в {pendingGroup}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Для продолжения необходимо ввести пароль этой группы
+                  </p>
+                </div>
+
+                <form onSubmit={handleConfirmPassword} className="space-y-4">
+                  <div>
+                    <input
+                      type="password"
+                      autoFocus
+                      required
+                      placeholder="Введите 8-значный пароль"
+                      value={passwordInput}
+                      onChange={(e) => {
+                        setPasswordInput(e.target.value);
+                        setPasswordError(null);
+                      }}
+                      className="w-full px-3 py-2.5 text-center text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-400"
+                    />
+                    {passwordError && (
+                      <p className="text-[10px] text-rose-500 font-semibold mt-1.5 text-center">
+                        ⚠️ {passwordError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingGroup(null);
+                        setPasswordInput('');
+                        setPasswordError(null);
+                      }}
+                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Назад
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+                    >
+                      Войти
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              /* Content - Grid of groups */
+              <div className="p-4 overflow-y-auto flex-1 grid grid-cols-2 gap-2.5 scrollbar-none">
+                {AVAILABLE_GROUPS.map((group) => {
+                  const isSelected = selectedGroup === group;
+                  return (
+                    <button
+                      key={group}
+                      onClick={() => handleSelectGroup(group)}
+                      className={`py-3.5 px-3 rounded-xl text-xs font-black tracking-tight transition-all duration-200 uppercase text-center flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                        isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="text-[14px]">👥</span>
+                      <span>{group}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-[9px] text-slate-400 font-medium font-mono shrink-0">
