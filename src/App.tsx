@@ -292,7 +292,7 @@ export default function App() {
       setRoomId(newId);
       setNewRoomName('');
     } catch (err) {
-      setError('Не удалось создать комнату на api.npoint.io. Пожалуйста, попробуйте снова.');
+      setError('Не удалось создать комнату на сервере. Пожалуйста, попробуйте снова.');
     } finally {
       setIsLoading(false);
     }
@@ -723,7 +723,7 @@ export default function App() {
               <span>BG-now</span>
             </h1>
             <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono hidden xs:block">
-              {roomId ? `API: npoint.io/bin/${roomId.slice(0, 10)}` : 'API: npoint.io/v1/collective'}
+              {roomId ? `API: /api/rooms/${roomId.slice(0, 10)}` : 'API: /api/rooms/v1'}
             </p>
           </div>
         </div>
@@ -1029,7 +1029,7 @@ export default function App() {
                                 <div
                                   key={spot.id}
                                   onClick={() => handleTogglePresence(spot.id)}
-                                  className={`${cardStyle} col-span-3 min-h-[55px] sm:min-h-[70px] rounded-lg sm:rounded-xl px-3 py-2 shadow-xs flex flex-row items-center justify-between gap-4 relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
+                                  className={`${cardStyle} col-span-3 min-h-[45px] sm:min-h-[55px] rounded-lg sm:rounded-xl px-3 py-1.5 shadow-xs flex flex-row items-center justify-between gap-4 relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
                                 >
                                   {/* Left side: title and admin editing */}
                                   <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
@@ -1057,11 +1057,10 @@ export default function App() {
                                       </div>
                                     ) : (
                                       <div className="flex items-center gap-1.5 min-w-0">
-                                        <h3 className="text-[11px] sm:text-xs font-black uppercase tracking-tight flex items-center gap-1 leading-none text-slate-950 truncate">
-                                          <span className="shrink-0 text-xs sm:text-sm">🏠</span>
+                                        <h3 className="text-xs sm:text-sm font-black uppercase tracking-tight flex items-center gap-1 leading-none text-slate-950 truncate">
+                                          <span>🏠</span>
                                           <span className="truncate">{spot.name}</span>
                                         </h3>
-                                        <span className="text-[8px] sm:text-[9px] px-1 bg-slate-900/10 rounded font-black text-slate-800 uppercase shrink-0">Дома</span>
                                         {selectedGroup === 'Группа 6' && (
                                           <button
                                             onClick={(e) => {
@@ -1079,18 +1078,17 @@ export default function App() {
                                     )}
                                   </div>
 
-                                  {/* Center: List of groups/users currently "At Home" */}
-                                  <div className="flex-1 flex items-center justify-center gap-2 px-2 min-w-0">
-                                    {hasUsers ? (
-                                      <div className="flex flex-wrap gap-1 items-center justify-center min-w-0 overflow-hidden">
-                                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-slate-800 bg-black/5 px-1 rounded shrink-0">Группы:</span>
+                                  {/* Center: List of groups/users currently at ППД */}
+                                  <div className="flex-1 flex items-center justify-end gap-2 px-2 min-w-0">
+                                    {hasUsers && (
+                                      <div className="flex flex-wrap gap-1 items-center justify-end min-w-0 overflow-hidden">
                                         {usersAtSpot.map((presenceUser) => (
                                           <span
                                             key={presenceUser.userId}
                                             className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase border shadow-xs truncate max-w-[80px] sm:max-w-[120px] ${
                                               presenceUser.userId === userId
                                                 ? 'bg-slate-950 text-white border-slate-900'
-                                                : 'bg-slate-850 text-white border-slate-900'
+                                                : 'bg-slate-800 text-white border-slate-900'
                                             }`}
                                             title={presenceUser.userName}
                                           >
@@ -1098,35 +1096,27 @@ export default function App() {
                                           </span>
                                         ))}
                                       </div>
-                                    ) : (
-                                      <span className="text-[9px] sm:text-xs font-bold text-slate-400 italic">Все группы на выезде</span>
                                     )}
                                   </div>
 
-                                  {/* Right side: quick status & check-in state */}
-                                  <div className="shrink-0 flex items-center gap-1.5">
-                                    <div className="flex items-center gap-1 mr-1 shrink-0">
-                                      <span className={`w-2 h-2 rounded-full ${hasUsers ? 'bg-amber-600' : 'bg-slate-300'}`}></span>
-                                      <span className="text-[9px] sm:text-[10px] font-black uppercase text-slate-900 hidden sm:inline">
-                                        {hasUsers ? 'ДОМА' : 'ПУСТО'}
-                                      </span>
-                                    </div>
+                                  {/* Right side: quick check-in toggle button */}
+                                  <div className="shrink-0">
                                     <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight py-1 px-1.5 rounded bg-black/5 group-hover:bg-black/10 transition-colors text-slate-900 shrink-0">
-                                      {hasUsers ? 'Уйти' : 'Войти'}
+                                      {isCurrentUserThere ? 'Уйти' : 'Войти'}
                                     </span>
                                   </div>
                                 </div>
                               );
                             }
 
-                            // 📍 Layout 2: Normal 3-column bento card for other locations
+                            // 📍 Layout 2: Normal 3-column bento card for other locations (half height, title maximally visible)
                             return (
                               <div
                                 key={spot.id}
                                 onClick={() => handleTogglePresence(spot.id)}
-                                className={`${cardStyle} rounded-lg sm:rounded-xl p-2 sm:p-3.5 shadow-xs flex flex-col relative transition-all duration-200 cursor-pointer group hover:shadow-md min-h-[110px] sm:min-h-[140px]`}
+                                className={`${cardStyle} rounded-lg sm:rounded-xl p-1.5 sm:p-2.5 shadow-xs flex flex-col justify-between relative transition-all duration-200 cursor-pointer group hover:shadow-md min-h-[55px] sm:min-h-[70px]`}
                               >
-                                <div className="flex justify-between items-start mb-1 sm:mb-2 min-w-0 relative">
+                                <div className="w-full relative">
                                   {editingSpotId === spot.id ? (
                                     <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
                                       <input
@@ -1151,29 +1141,28 @@ export default function App() {
                                     </div>
                                   ) : (
                                     <>
-                                      <h3 className="text-[10px] sm:text-xs md:text-sm font-black text-slate-950 uppercase tracking-tight flex items-center gap-1 min-w-0 leading-tight pr-8">
-                                        <span className="shrink-0">📍</span>
-                                        <span className="truncate">{spot.name}</span>
+                                      <h3 className="text-center w-full text-[11px] sm:text-xs md:text-sm font-black text-slate-950 uppercase tracking-tight break-all leading-tight">
+                                        {spot.name}
                                       </h3>
                                       {selectedGroup === 'Группа 6' && (
-                                        <div className="absolute right-0 top-0 flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                        <div className="absolute -right-1 -top-1 flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               setEditingSpotId(spot.id);
                                               setEditingSpotName(spot.name);
                                             }}
-                                            className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 rounded transition-all"
-                                            title="Редактировать название"
+                                            className="p-0.5 bg-white/95 hover:bg-white text-slate-700 hover:text-slate-950 rounded border border-slate-200/60 shadow-xs"
+                                            title="Редактировать"
                                           >
-                                            <Pencil className="w-3 h-3" />
+                                            <Pencil className="w-2.5 h-2.5" />
                                           </button>
                                           <button
                                             onClick={(e) => handleDeleteSpot(spot.id, e)}
-                                            className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 rounded transition-all"
-                                            title="Удалить точку"
+                                            className="p-0.5 bg-rose-50/95 hover:bg-rose-100 text-rose-500 hover:text-rose-700 rounded border border-rose-200/40 shadow-xs"
+                                            title="Удалить"
                                           >
-                                            <Trash2 className="w-3 h-3" />
+                                            <Trash2 className="w-2.5 h-2.5" />
                                           </button>
                                         </div>
                                       )}
@@ -1181,49 +1170,33 @@ export default function App() {
                                   )}
                                 </div>
 
-                                {/* Two Indicators as requested */}
-                                <div className="space-y-1 sm:space-y-2 mt-1 flex-1">
-                                  {/* Indicator 1: Green or Red presence status dot */}
-                                  <div className="flex items-center gap-1">
-                                    {usersAtSpot.length > 0 ? (
-                                      <>
-                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-600 animate-pulse inline-block shrink-0"></span>
-                                        <span className="text-[8px] sm:text-[10px] font-black text-emerald-800 uppercase tracking-tight">Занято</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 inline-block shrink-0"></span>
-                                        <span className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-tight">Никого</span>
-                                      </>
-                                    )}
-                                  </div>
-
-                                  {/* Indicator 2: Travelers name (visible only if someone is on site) */}
-                                  {usersAtSpot.length > 0 && (
-                                    <div className="text-[9px] sm:text-xs text-slate-700 font-medium pt-0.5">
-                                      <div className="flex flex-col gap-1 mt-1">
-                                        {usersAtSpot.map((presenceUser) => (
-                                          <span
-                                            key={presenceUser.userId}
-                                            className={`px-1.5 py-1 rounded text-[8px] sm:text-[10px] font-black text-center uppercase tracking-tight shadow-xs border ${
-                                              presenceUser.userId === userId
-                                                ? 'bg-emerald-600 text-white border-emerald-700 animate-pulse'
-                                                : 'bg-blue-600 text-white border-blue-700'
-                                            } truncate max-w-full`}
-                                            title={presenceUser.userName}
-                                          >
-                                            {presenceUser.userName} {presenceUser.userId === userId && '👤'}
-                                          </span>
-                                        ))}
-                                      </div>
+                                {/* Travelers List or status - ultra compact */}
+                                <div className="flex-1 flex items-center justify-center min-h-[14px] sm:min-h-[18px] my-1">
+                                  {usersAtSpot.length > 0 ? (
+                                    <div className="flex flex-wrap gap-0.5 items-center justify-center max-w-full">
+                                      {usersAtSpot.map((presenceUser) => (
+                                        <span
+                                          key={presenceUser.userId}
+                                          className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
+                                            presenceUser.userId === userId
+                                              ? 'bg-emerald-600 text-white border-emerald-700'
+                                              : 'bg-blue-600 text-white border-blue-700'
+                                          }`}
+                                          title={presenceUser.userName}
+                                        >
+                                          {presenceUser.userName}
+                                        </span>
+                                      ))}
                                     </div>
+                                  ) : (
+                                    <span className="text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-tight">Пусто</span>
                                   )}
                                 </div>
 
-                                {/* Bottom divider and info */}
-                                <div className="flex items-center justify-between border-t border-slate-200/60 pt-1.5 mt-2 text-[8px] sm:text-[10px]">
-                                  <span className="text-slate-400 font-black uppercase tracking-tight group-hover:text-blue-500 transition-colors truncate max-w-full w-full text-center">
-                                    {usersAtSpot.length > 0 ? 'Убрать отметку' : 'Отметиться'}
+                                {/* Bottom action label */}
+                                <div className="border-t border-slate-150 pt-0.5 text-center leading-none">
+                                  <span className="text-[8px] sm:text-[9px] font-black uppercase text-slate-400 group-hover:text-blue-600 transition-colors">
+                                    {isCurrentUserThere ? 'Уйти' : 'Войти'}
                                   </span>
                                 </div>
                               </div>
@@ -1316,7 +1289,7 @@ export default function App() {
       {/* Small informative baseline footer */}
       {!roomId && (
         <footer className="bg-white border-t border-slate-100 py-3.5 text-center text-[11px] text-slate-400 font-mono">
-          © 2026 BG-now • Синхронизация через api.npoint.io • Развертывание в реальном времени
+          © 2026 BG-now • Встроенная синхронизация • Развертывание в реальном времени
         </footer>
       )}
 
