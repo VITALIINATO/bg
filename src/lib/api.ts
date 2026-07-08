@@ -1,6 +1,6 @@
 import { RoomState } from '../types';
 
-const BASE_URL = 'https://api.npoint.io';
+const BASE_URL = '/api/rooms';
 
 // Default initial state for a newly created room
 export const DEFAULT_SPOTS = [
@@ -21,12 +21,12 @@ export const createInitialState = (roomName: string): RoomState => ({
 });
 
 /**
- * Creates a new JSON bin on npoint.io
+ * Creates a new JSON bin
  */
 export async function createRoom(roomName: string): Promise<string> {
   const initialState = createInitialState(roomName);
   try {
-    const response = await fetch('https://www.npoint.io/documents', {
+    const response = await fetch('/api/rooms', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -44,15 +44,15 @@ export async function createRoom(roomName: string): Promise<string> {
     if (data.token) {
       return data.token;
     }
-    throw new Error('No token returned from npoint.io');
+    throw new Error('No token returned from server');
   } catch (error) {
-    console.error('Error creating room on npoint:', error);
+    console.error('Error creating room on server:', error);
     throw error;
   }
 }
 
 /**
- * Reads the room state from npoint.io
+ * Reads the room state from server
  */
 export async function fetchRoomState(binId: string): Promise<RoomState> {
   try {
@@ -77,29 +77,17 @@ export async function fetchRoomState(binId: string): Promise<RoomState> {
 }
 
 /**
- * Overwrites/updates the room state on npoint.io
+ * Overwrites/updates the room state on server
  */
 export async function updateRoomState(binId: string, state: RoomState): Promise<boolean> {
   try {
-    // We try PUT first which is standard for updating bins on npoint
     let response = await fetch(`${BASE_URL}/${binId}`, {
-      method: 'POST', // Some npoint setups allow POST for overwrites too, but let's try POST then PUT if needed
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(state),
     });
-
-    if (!response.ok) {
-      // If POST didn't work for updating, try PUT (the standard update method)
-      response = await fetch(`${BASE_URL}/${binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(state),
-      });
-    }
 
     if (!response.ok) {
       throw new Error(`Failed to update room state: ${response.status} ${response.statusText}`);
