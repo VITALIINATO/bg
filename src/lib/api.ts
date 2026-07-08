@@ -5,11 +5,18 @@ const BASE_URL = '/api/rooms';
 // Default initial state for a newly created room
 export const DEFAULT_SPOTS = [
   { id: 'spot-ppd', name: 'ППД', description: 'Пункт постоянной дислокации', x: 50, y: 50 },
-  { id: 'spot-1', name: 'ЦУМ', description: 'Центральный универсальный магазин (главный вход)', x: 35, y: 30 },
-  { id: 'spot-2', name: 'Вокзал', description: 'Главный железнодорожный вокзал (у часов)', x: 70, y: 25 },
-  { id: 'spot-3', name: 'Парк', description: 'Центральный городской парк (у фонтана)', x: 50, y: 70 },
-  { id: 'spot-4', name: 'Площадь', description: 'Центральная площадь (возле памятника)', x: 25, y: 65 },
-  { id: 'spot-5', name: 'Кинотеатр', description: 'Кинотеатр Октябрь (кассы)', x: 60, y: 45 }
+  { id: 'spot-1', name: '1', description: 'Геоточка 1', x: 20, y: 15 },
+  { id: 'spot-2', name: '2', description: 'Геоточка 2', x: 50, y: 15 },
+  { id: 'spot-3', name: '3', description: 'Геоточка 3', x: 80, y: 15 },
+  { id: 'spot-4', name: '4', description: 'Геоточка 4', x: 20, y: 35 },
+  { id: 'spot-5', name: '5', description: 'Геоточка 5', x: 80, y: 35 },
+  { id: 'spot-6', name: '6', description: 'Геоточка 6', x: 20, y: 65 },
+  { id: 'spot-7', name: '7', description: 'Геоточка 7', x: 80, y: 65 },
+  { id: 'spot-8', name: '8', description: 'Геоточка 8', x: 20, y: 85 },
+  { id: 'spot-9', name: '9', description: 'Геоточка 9', x: 50, y: 85 },
+  { id: 'spot-10', name: '10', description: 'Геоточка 10', x: 80, y: 85 },
+  { id: 'spot-11', name: '11', description: 'Геоточка 11', x: 35, y: 50 },
+  { id: 'spot-12', name: '12', description: 'Геоточка 12', x: 65, y: 50 }
 ];
 
 export const createInitialState = (roomName: string): RoomState => ({

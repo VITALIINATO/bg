@@ -226,16 +226,26 @@ export default function App() {
       const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
       updatedUsers = updatedUsers.filter((u) => new Date(u.lastActive) > cutoff);
 
-      const hasPPD = data.spots.some(s => s.name === 'ППД');
-      const updatedSpots = hasPPD 
-        ? data.spots 
-        : [{ id: 'spot-ppd', name: 'ППД', description: 'Пункт постоянной дислокации', x: 50, y: 50 }, ...data.spots];
+      // Ensure all default spots exist in the loaded data (healing old data structures)
+      let updatedSpots = [...data.spots];
+      const hasOldLayout = updatedSpots.some(s => ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name));
+      if (hasOldLayout) {
+        updatedSpots = [...DEFAULT_SPOTS];
+      } else {
+        DEFAULT_SPOTS.forEach((defaultSpot) => {
+          const exists = updatedSpots.some(s => s.name.toUpperCase() === defaultSpot.name.toUpperCase());
+          if (!exists) {
+            updatedSpots.push(defaultSpot);
+          }
+        });
+      }
 
       const nextState = { ...data, spots: updatedSpots, users: updatedUsers };
       setRoomState(nextState);
 
-      // Save user heartbeat back to server silently if user was added/updated or PPD was injected
-      if (JSON.stringify(data.users) !== JSON.stringify(updatedUsers) || !hasPPD) {
+      // Save user heartbeat and healed spots back to server silently if needed
+      const spotsChanged = JSON.stringify(data.spots) !== JSON.stringify(updatedSpots);
+      if (JSON.stringify(data.users) !== JSON.stringify(updatedUsers) || spotsChanged) {
         await updateRoomState(targetRoomId, nextState);
       }
     } catch (err: any) {
@@ -461,15 +471,29 @@ export default function App() {
   const handleAddCustomSpot = async (name: string, description: string, x: number, y: number) => {
     if (!roomId || !roomState) return;
 
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      alert('Название геоточки не может быть пустым.');
+      return;
+    }
+
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId);
       
+      const nameExists = freshState.spots.some(
+        (s) => s.name.trim().toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (nameExists) {
+        alert(`Геоточка с названием "${trimmedName}" уже существует.`);
+        return;
+      }
+
       const newSpot: Spot = {
         id: 'spot-' + generateId(),
-        name,
+        name: trimmedName,
         description,
         x,
         y
@@ -506,6 +530,14 @@ export default function App() {
     try {
       const freshState = await fetchRoomState(roomId);
       
+      const nameExists = freshState.spots.some(
+        (s) => s.id !== spotId && s.name.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (nameExists) {
+        alert(`Геоточка с названием "${trimmed}" уже существует.`);
+        return;
+      }
+
       const updatedSpots = freshState.spots.map((spot) =>
         spot.id === spotId ? { ...spot, name: trimmed } : spot
       );
@@ -841,7 +873,15 @@ export default function App() {
                             const bOccupied = roomState.presence.some(p => p.spotId === b.id);
                             if (aOccupied && !bOccupied) return -1;
                             if (!aOccupied && bOccupied) return 1;
-                            return 0;
+
+                            // Sort numerically if names are numbers
+                            const aNum = parseInt(a.name, 10);
+                            const bNum = parseInt(b.name, 10);
+                            if (!isNaN(aNum) && !isNaN(bNum)) {
+                              return aNum - bNum;
+                            }
+                            // Fallback to alphabetical sorting
+                            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
                           })
                           .map((spot) => {
                             const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id);
