@@ -8,6 +8,17 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
+// Custom CORS middleware to prevent iframe and cross-origin fetch blocks
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Local JSON File DB
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "rooms.json");

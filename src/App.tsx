@@ -109,6 +109,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
 
   // --- Spot Addition State ---
   const [isAddingSpot, setIsAddingSpot] = useState<boolean>(false);
@@ -231,6 +232,7 @@ export default function App() {
 
     try {
       const data = await fetchRoomState(targetRoomId, currentUserId, currentUserName);
+      setIsOffline(data.isOffline || false);
       
       // Ensure all default spots exist in the loaded data (healing old data structures)
       let updatedSpots = [...data.spots];
@@ -267,6 +269,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error(err);
+      setIsOffline(true);
       if (showSpinner) {
         setError('Не удалось загрузить данные группы. Пожалуйста, проверьте интернет-соединение.');
       } else {
@@ -742,9 +745,9 @@ export default function App() {
         {roomId && (
           <div className="hidden md:flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`}></span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
-                Сессия: {roomState?.roomName || 'Синхронизация...'}
+                Сессия: {isOffline ? `${roomState?.roomName || 'Общая группа'} (Локальный режим)` : (roomState?.roomName || 'Синхронизация...')}
               </span>
             </div>
             <div className="h-8 w-[1px] bg-slate-700"></div>
@@ -780,6 +783,23 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Offline Alert Banner */}
+      {isOffline && (
+        <div className="bg-amber-500 text-slate-900 px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-md shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-base shrink-0">⚠️</span>
+            <span>Вы работаете в локальном (автономном) режиме. Данные будут синхронизированы при восстановлении связи с сервером.</span>
+          </div>
+          <button 
+            onClick={syncData}
+            disabled={isSyncing}
+            className="px-3 py-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shrink-0 font-bold active:scale-95 disabled:opacity-50 text-xs cursor-pointer"
+          >
+            {isSyncing ? 'Подключение...' : 'Подключиться'}
+          </button>
+        </div>
+      )}
 
       {/* Main Viewport Area */}
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 gap-4">
@@ -1180,10 +1200,14 @@ export default function App() {
       {roomId && roomState && (
         <footer className="bg-white border-t border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-lg">
           <div className="text-left">
-            <p className="text-[10px] text-slate-400">Автосинхронизация включена</p>
-            <p className="text-xs font-mono text-slate-600 flex items-center gap-1.5 justify-center sm:justify-start">
-              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isSyncing ? 'animate-ping' : ''}`}></span>
-              <span>Синхронизация через: <strong>{countdown}с</strong></span>
+            <p className="text-[10px] font-semibold flex items-center gap-1.5 justify-center sm:justify-start">
+              <span className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'} ${isSyncing ? 'animate-ping' : ''}`}></span>
+              <span className={isOffline ? 'text-amber-600' : 'text-emerald-600'}>
+                {isOffline ? 'Локальный режим (нет связи с сервером)' : 'Общая сессия активна (онлайн)'}
+              </span>
+            </p>
+            <p className="text-xs font-mono text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start mt-0.5">
+              <span>{isOffline ? 'Повторное подключение через:' : 'Синхронизация через:'} <strong>{countdown}с</strong></span>
             </p>
           </div>
           

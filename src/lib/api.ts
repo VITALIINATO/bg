@@ -75,11 +75,12 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
     const data = await response.json();
     
     const parsed: RoomState = {
-      roomName: data.roomName || 'Группа',
+      roomName: data.roomName || 'Общая группа',
       spots: Array.isArray(data.spots) ? data.spots : [...DEFAULT_SPOTS],
       users: Array.isArray(data.users) ? data.users : [],
       presence: Array.isArray(data.presence) ? data.presence : [],
-      history: Array.isArray(data.history) ? data.history : []
+      history: Array.isArray(data.history) ? data.history : [],
+      isOffline: false
     };
 
     // Store a backup in localStorage for offline/static deployment recovery
@@ -99,11 +100,12 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          roomName: parsed.roomName || 'Группа (Локальный режим)',
+          roomName: parsed.roomName || 'Общая группа',
           spots: Array.isArray(parsed.spots) ? parsed.spots : [...DEFAULT_SPOTS],
           users: Array.isArray(parsed.users) ? parsed.users : [],
           presence: Array.isArray(parsed.presence) ? parsed.presence : [],
-          history: Array.isArray(parsed.history) ? parsed.history : []
+          history: Array.isArray(parsed.history) ? parsed.history : [],
+          isOffline: true
         };
       }
     } catch (e) {
@@ -112,7 +114,9 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
 
     // Ultimate fallback if no local storage found
     console.warn(`No localStorage backup found for ${binId}, creating fresh initial state locally.`);
-    return createInitialState('Группа (Локальный режим)');
+    const fallback = createInitialState('Общая группа');
+    fallback.isOffline = true;
+    return fallback;
   }
 }
 

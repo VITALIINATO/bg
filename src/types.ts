@@ -35,4 +35,5 @@ export interface RoomState {
   users: ActiveUser[];
   presence: UserPresence[];
   history: HistoryEvent[];
+  isOffline?: boolean;
 }
