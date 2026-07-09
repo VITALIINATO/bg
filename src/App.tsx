@@ -342,9 +342,13 @@ export default function App() {
             u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
           );
           // Also update the presence list names
-          const updatedPresence = roomState.presence.map((p) =>
+          let updatedPresence = roomState.presence.map((p) =>
             p.userId === userId ? { ...p, userName: groupName } : p
           );
+
+          if (groupName === 'Наблюдатель') {
+            updatedPresence = updatedPresence.filter((p) => p.userId !== userId);
+          }
 
           const nextState = {
             ...roomState,
@@ -1098,7 +1102,7 @@ export default function App() {
                                       ))}
                                     </div>
                                   ) : (
-                                    <span className="text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-tight">Пусто</span>
+                                    <span className="text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-tight">Никого</span>
                                   )}
                                 </div>
 
