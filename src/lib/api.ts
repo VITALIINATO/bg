@@ -1,4 +1,5 @@
 import { RoomState } from '../types';
+import { safeLocalStorage } from './storage';
 
 const BASE_URL = '/api/rooms';
 
@@ -83,7 +84,7 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
 
     // Store a backup in localStorage for offline/static deployment recovery
     try {
-      localStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(parsed));
+      safeLocalStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(parsed));
     } catch (e) {
       console.warn('Failed to save room state backup to localStorage:', e);
     }
@@ -94,7 +95,7 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
     
     // Attempt local storage fallback
     try {
-      const saved = localStorage.getItem(`coloc_room_state_${binId}`);
+      const saved = safeLocalStorage.getItem(`coloc_room_state_${binId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
@@ -121,7 +122,7 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
 export async function updateRoomState(binId: string, state: RoomState): Promise<boolean> {
   // First, always save to local storage as backup
   try {
-    localStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(state));
+    safeLocalStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(state));
   } catch (e) {
     console.warn('Failed to save room state backup to localStorage:', e);
   }

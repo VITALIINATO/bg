@@ -10,6 +10,7 @@ import {
   DEFAULT_SPOTS,
   createInitialState
 } from './lib/api';
+import { safeSessionStorage, safeLocalStorage } from './lib/storage';
 import AddSpotForm from './components/AddSpotForm';
 import {
   MapPin,
@@ -135,14 +136,14 @@ export default function App() {
   useEffect(() => { userNameRef.current = userName; }, [userName]);
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
 
-  // 1. Initialize user from sessionStorage or generate new
+  // 1. Initialize user from safeSessionStorage or generate new
   useEffect(() => {
-    let savedUserId = sessionStorage.getItem('coloc_userid');
-    const savedGroup = sessionStorage.getItem('coloc_selected_group');
+    let savedUserId = safeSessionStorage.getItem('coloc_userid');
+    const savedGroup = safeSessionStorage.getItem('coloc_selected_group');
 
     if (!savedUserId) {
       savedUserId = 'u-' + generateId();
-      sessionStorage.setItem('coloc_userid', savedUserId);
+      safeSessionStorage.setItem('coloc_userid', savedUserId);
     }
     setUserId(savedUserId);
 
@@ -150,7 +151,7 @@ export default function App() {
       setSelectedGroup(savedGroup);
       setUserName(savedGroup);
       setTempName(savedGroup);
-      sessionStorage.setItem('coloc_username', savedGroup);
+      safeSessionStorage.setItem('coloc_username', savedGroup);
     } else {
       // If no valid group is selected, force show the group selector on load
       setShowGroupSelector(true);
@@ -250,7 +251,7 @@ export default function App() {
       const beforeFilterLength = updatedPresence.length;
       updatedPresence = updatedPresence.filter((p) => p.userName !== 'Наблюдатель');
       
-      const isObserver = currentSelectedGroup === 'Наблюдатель' || currentUserName === 'Наблюдатель' || sessionStorage.getItem('coloc_selected_group') === 'Наблюдатель';
+      const isObserver = currentSelectedGroup === 'Наблюдатель' || currentUserName === 'Наблюдатель' || safeSessionStorage.getItem('coloc_selected_group') === 'Наблюдатель';
       if (isObserver) {
         updatedPresence = updatedPresence.filter((p) => p.userId !== currentUserId);
       }
@@ -282,7 +283,7 @@ export default function App() {
     if (!trimmed) return;
     
     setUserName(trimmed);
-    sessionStorage.setItem('coloc_username', trimmed);
+    safeSessionStorage.setItem('coloc_username', trimmed);
     setIsEditingName(false);
 
     // If already in a room, synchronize the name change
@@ -330,8 +331,8 @@ export default function App() {
       setSelectedGroup(groupName);
       setUserName(groupName);
       setTempName(groupName);
-      sessionStorage.setItem('coloc_selected_group', groupName);
-      sessionStorage.setItem('coloc_username', groupName);
+      safeSessionStorage.setItem('coloc_selected_group', groupName);
+      safeSessionStorage.setItem('coloc_username', groupName);
       setShowGroupSelector(false);
       setPendingGroup(null);
       setPasswordInput('');
@@ -375,7 +376,7 @@ export default function App() {
   // Leave current room / group
   const handleLeaveRoom = () => {
     setSelectedGroup(null);
-    sessionStorage.removeItem('coloc_selected_group');
+    safeSessionStorage.removeItem('coloc_selected_group');
     setShowGroupSelector(true);
   };
 
