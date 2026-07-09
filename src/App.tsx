@@ -52,11 +52,11 @@ const AVAILABLE_GROUPS = [
   'Группа 6',
   'Группа 7',
   'Группа 8',
+  'Группа 13',
   'Группа 14',
   'Группа 15',
   'Группа 18',
-  'Группа 19',
-  'Группа 23'
+  
 ];
 
 const getGroupPassword = (groupName: string): string => {
