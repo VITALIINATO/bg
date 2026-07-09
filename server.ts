@@ -102,7 +102,37 @@ app.get("/api/rooms/:binId", (req, res) => {
   const { binId } = req.params;
   
   if (roomsCache[binId]) {
-    return res.json(roomsCache[binId]);
+    const data = roomsCache[binId];
+    let spotsChanged = false;
+
+    if (!data.spots || !Array.isArray(data.spots)) {
+      data.spots = [...DEFAULT_SPOTS];
+      spotsChanged = true;
+    } else {
+      // Self-heal old layout names
+      const hasOldLayout = data.spots.some((s: any) => 
+        s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name)
+      );
+      if (hasOldLayout) {
+        data.spots = [...DEFAULT_SPOTS];
+        spotsChanged = true;
+      } else {
+        // Ensure all default spots exist
+        DEFAULT_SPOTS.forEach((defaultSpot) => {
+          const exists = data.spots.some((s: any) => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
+          if (!exists) {
+            data.spots.push(defaultSpot);
+            spotsChanged = true;
+          }
+        });
+      }
+    }
+
+    if (spotsChanged) {
+      saveRoomsToDisk();
+    }
+
+    return res.json(data);
   }
 
   // Dynamic self-healing: if binId isn't found, initialize it with a default state
@@ -122,6 +152,25 @@ const handleUpdate = (req: any, res: any) => {
 
   if (!newState || typeof newState !== "object") {
     return res.status(400).json({ error: "Invalid state object" });
+  }
+
+  // Self-heal the spots array to ensure correct data integrity on save
+  if (!newState.spots || !Array.isArray(newState.spots)) {
+    newState.spots = [...DEFAULT_SPOTS];
+  } else {
+    const hasOldLayout = newState.spots.some((s: any) => 
+      s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name)
+    );
+    if (hasOldLayout) {
+      newState.spots = [...DEFAULT_SPOTS];
+    } else {
+      DEFAULT_SPOTS.forEach((defaultSpot) => {
+        const exists = newState.spots.some((s: any) => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
+        if (!exists) {
+          newState.spots.push(defaultSpot);
+        }
+      });
+    }
   }
 
   roomsCache[binId] = newState;

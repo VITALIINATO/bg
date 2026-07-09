@@ -59,7 +59,7 @@ export async function createRoom(roomName: string): Promise<string> {
 }
 
 /**
- * Reads the room state from server
+ * Reads the room state from server with robust localStorage fallback
  */
 export async function fetchRoomState(binId: string): Promise<RoomState> {
   try {
@@ -69,24 +69,59 @@ export async function fetchRoomState(binId: string): Promise<RoomState> {
     }
     const data = await response.json();
     
-    // Ensure all required fields exist to prevent app crashes
-    return {
+    const parsed: RoomState = {
       roomName: data.roomName || 'Группа',
       spots: Array.isArray(data.spots) ? data.spots : [...DEFAULT_SPOTS],
       users: Array.isArray(data.users) ? data.users : [],
       presence: Array.isArray(data.presence) ? data.presence : [],
       history: Array.isArray(data.history) ? data.history : []
     };
+
+    // Store a backup in localStorage for offline/static deployment recovery
+    try {
+      localStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(parsed));
+    } catch (e) {
+      console.warn('Failed to save room state backup to localStorage:', e);
+    }
+
+    return parsed;
   } catch (error) {
-    console.error(`Error fetching room state for bin ${binId}:`, error);
-    throw error;
+    console.error(`Error fetching room state for bin ${binId}, trying localStorage backup:`, error);
+    
+    // Attempt local storage fallback
+    try {
+      const saved = localStorage.getItem(`coloc_room_state_${binId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          roomName: parsed.roomName || 'Группа (Локальный режим)',
+          spots: Array.isArray(parsed.spots) ? parsed.spots : [...DEFAULT_SPOTS],
+          users: Array.isArray(parsed.users) ? parsed.users : [],
+          presence: Array.isArray(parsed.presence) ? parsed.presence : [],
+          history: Array.isArray(parsed.history) ? parsed.history : []
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load room state from localStorage:', e);
+    }
+
+    // Ultimate fallback if no local storage found
+    console.warn(`No localStorage backup found for ${binId}, creating fresh initial state locally.`);
+    return createInitialState('Группа (Локальный режим)');
   }
 }
 
 /**
- * Overwrites/updates the room state on server
+ * Overwrites/updates the room state on server with localStorage backup
  */
 export async function updateRoomState(binId: string, state: RoomState): Promise<boolean> {
+  // First, always save to local storage as backup
+  try {
+    localStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(state));
+  } catch (e) {
+    console.warn('Failed to save room state backup to localStorage:', e);
+  }
+
   try {
     let response = await fetch(`${BASE_URL}/${binId}`, {
       method: 'PUT',
@@ -102,7 +137,8 @@ export async function updateRoomState(binId: string, state: RoomState): Promise<
 
     return true;
   } catch (error) {
-    console.error(`Error updating room state for bin ${binId}:`, error);
-    throw error;
+    console.error(`Error updating room state for bin ${binId}, relying on localStorage backup:`, error);
+    // Return true even if network fails so the app continues operating offline/locally
+    return true;
   }
 }

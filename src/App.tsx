@@ -228,12 +228,12 @@ export default function App() {
 
       // Ensure all default spots exist in the loaded data (healing old data structures)
       let updatedSpots = [...data.spots];
-      const hasOldLayout = updatedSpots.some(s => ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name));
+      const hasOldLayout = updatedSpots.some(s => s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name));
       if (hasOldLayout) {
         updatedSpots = [...DEFAULT_SPOTS];
       } else {
         DEFAULT_SPOTS.forEach((defaultSpot) => {
-          const exists = updatedSpots.some(s => s.name.toUpperCase() === defaultSpot.name.toUpperCase());
+          const exists = updatedSpots.some(s => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
           if (!exists) {
             updatedSpots.push(defaultSpot);
           }
