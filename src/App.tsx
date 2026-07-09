@@ -55,8 +55,7 @@ const AVAILABLE_GROUPS = [
   'Группа 13',
   'Группа 14',
   'Группа 15',
-  'Группа 18',
-  
+  'Группа 18'
 ];
 
 const getGroupPassword = (groupName: string): string => {
@@ -1126,8 +1125,8 @@ export default function App() {
                 </div>
               </div>
               <div className={`${isActivityExpanded ? 'block' : 'hidden lg:block'} flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[220px] lg:max-h-none`}>
-                {roomState?.history && roomState.history.length > 0 ? (
-                  roomState.history.map((ev) => renderHistoryItem(ev))
+                {roomState?.history && roomState.history.filter((ev) => ev.type === 'check-in').length > 0 ? (
+                  roomState.history.filter((ev) => ev.type === 'check-in').map((ev) => renderHistoryItem(ev))
                 ) : (
                   <div className="text-center py-6 text-slate-400 italic text-[11px] font-sans">
                     Нет последних действий. Нажмите "Отметиться" выше.
