@@ -100,14 +100,57 @@ app.post("/api/rooms", (req, res) => {
 // Get room state (replaces getting from npoint)
 app.get("/api/rooms/:binId", (req, res) => {
   const { binId } = req.params;
+  const { userId, userName } = req.query;
   
   if (roomsCache[binId]) {
     const data = roomsCache[binId];
-    let spotsChanged = false;
+    let stateChanged = false;
+
+    // Handle user heartbeat if query params are present
+    if (userId && userName && typeof userId === "string" && typeof userName === "string") {
+      if (!Array.isArray(data.users)) {
+        data.users = [];
+      }
+      
+      const nowString = new Date().toISOString();
+      const userIndex = data.users.findIndex((u: any) => u.id === userId);
+      
+      if (userIndex >= 0) {
+        // Only update if name changed or if it has been more than 3 seconds since last update to avoid excessive saving
+        const lastActiveTime = new Date(data.users[userIndex].lastActive).getTime();
+        const nowTime = new Date(nowString).getTime();
+        if (data.users[userIndex].name !== userName || isNaN(lastActiveTime) || nowTime - lastActiveTime > 3000) {
+          data.users[userIndex] = {
+            ...data.users[userIndex],
+            name: userName,
+            lastActive: nowString
+          };
+          stateChanged = true;
+        }
+      } else {
+        data.users.push({
+          id: userId,
+          name: userName,
+          lastActive: nowString
+        });
+        stateChanged = true;
+      }
+      
+      // Clean old users (older than 48 hours)
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+      const beforeFilterLength = data.users.length;
+      data.users = data.users.filter((u: any) => {
+        const lastActiveTime = new Date(u.lastActive).getTime();
+        return !isNaN(lastActiveTime) && lastActiveTime > cutoff.getTime();
+      });
+      if (data.users.length !== beforeFilterLength) {
+        stateChanged = true;
+      }
+    }
 
     if (!data.spots || !Array.isArray(data.spots)) {
       data.spots = [...DEFAULT_SPOTS];
-      spotsChanged = true;
+      stateChanged = true;
     } else {
       // Self-heal old layout names
       const hasOldLayout = data.spots.some((s: any) => 
@@ -115,20 +158,20 @@ app.get("/api/rooms/:binId", (req, res) => {
       );
       if (hasOldLayout) {
         data.spots = [...DEFAULT_SPOTS];
-        spotsChanged = true;
+        stateChanged = true;
       } else {
         // Ensure all default spots exist
         DEFAULT_SPOTS.forEach((defaultSpot) => {
           const exists = data.spots.some((s: any) => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
           if (!exists) {
             data.spots.push(defaultSpot);
-            spotsChanged = true;
+            stateChanged = true;
           }
         });
       }
     }
 
-    if (spotsChanged) {
+    if (stateChanged) {
       saveRoomsToDisk();
     }
 

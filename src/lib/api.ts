@@ -61,9 +61,13 @@ export async function createRoom(roomName: string): Promise<string> {
 /**
  * Reads the room state from server with robust localStorage fallback
  */
-export async function fetchRoomState(binId: string): Promise<RoomState> {
+export async function fetchRoomState(binId: string, userId?: string, userName?: string): Promise<RoomState> {
   try {
-    const response = await fetch(`${BASE_URL}/${binId}`);
+    let url = `${BASE_URL}/${binId}`;
+    if (userId && userName) {
+      url += `?userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
+    }
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch room state: ${response.status} ${response.statusText}`);
     }

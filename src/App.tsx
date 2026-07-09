@@ -214,31 +214,8 @@ export default function App() {
     if (showSpinner) setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchRoomState(targetRoomId);
+      const data = await fetchRoomState(targetRoomId, userId, userName);
       
-      // Update our presence in the list of users
-      let updatedUsers = [...data.users];
-      const userIndex = updatedUsers.findIndex((u) => u.id === userId);
-      
-      const nowString = new Date().toISOString();
-      if (userIndex >= 0) {
-        updatedUsers[userIndex] = {
-          ...updatedUsers[userIndex],
-          name: userName,
-          lastActive: nowString
-        };
-      } else {
-        updatedUsers.push({
-          id: userId,
-          name: userName,
-          lastActive: nowString
-        });
-      }
-
-      // Filter out users who have been inactive for more than 48 hours to keep list clean
-      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
-      updatedUsers = updatedUsers.filter((u) => new Date(u.lastActive) > cutoff);
-
       // Ensure all default spots exist in the loaded data (healing old data structures)
       let updatedSpots = [...data.spots];
       const hasOldLayout = updatedSpots.some(s => s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name));
@@ -253,12 +230,23 @@ export default function App() {
         });
       }
 
-      const nextState = { ...data, spots: updatedSpots, users: updatedUsers };
+      // Filter out any presence entries for 'Наблюдатель' to ensure observers are never checked in anywhere
+      let updatedPresence = Array.isArray(data.presence) ? [...data.presence] : [];
+      const beforeFilterLength = updatedPresence.length;
+      updatedPresence = updatedPresence.filter((p) => p.userName !== 'Наблюдатель');
+      
+      const isObserver = selectedGroup === 'Наблюдатель' || userName === 'Наблюдатель' || localStorage.getItem('coloc_selected_group') === 'Наблюдатель';
+      if (isObserver) {
+        updatedPresence = updatedPresence.filter((p) => p.userId !== userId);
+      }
+
+      const nextState = { ...data, spots: updatedSpots, presence: updatedPresence };
       setRoomState(nextState);
 
-      // Save user heartbeat and healed spots back to server silently if needed
+      // Save healed spots and cleaned presence back to server silently ONLY if they actually changed
       const spotsChanged = JSON.stringify(data.spots) !== JSON.stringify(updatedSpots);
-      if (JSON.stringify(data.users) !== JSON.stringify(updatedUsers) || spotsChanged) {
+      const presenceChanged = beforeFilterLength !== updatedPresence.length || JSON.stringify(data.presence) !== JSON.stringify(updatedPresence);
+      if (spotsChanged || presenceChanged) {
         await updateRoomState(targetRoomId, nextState);
       }
     } catch (err: any) {
@@ -389,7 +377,7 @@ export default function App() {
     
     try {
       // Re-fetch latest state to prevent race conditions as much as possible
-      const freshState = await fetchRoomState(roomId);
+      const freshState = await fetchRoomState(roomId, userId, userName);
       
       const spot = freshState.spots.find((s) => s.id === spotId);
       if (!spot) throw new Error('Геоточка не найдена.');
@@ -506,7 +494,7 @@ export default function App() {
     stopTimers();
 
     try {
-      const freshState = await fetchRoomState(roomId);
+      const freshState = await fetchRoomState(roomId, userId, userName);
       
       const nameExists = freshState.spots.some(
         (s) => s.name.trim().toLowerCase() === trimmedName.toLowerCase()
@@ -557,7 +545,7 @@ export default function App() {
     stopTimers();
 
     try {
-      const freshState = await fetchRoomState(roomId);
+      const freshState = await fetchRoomState(roomId, userId, userName);
       
       const nameExists = freshState.spots.some(
         (s) => s.id !== spotId && s.name.trim().toLowerCase() === trimmed.toLowerCase()
@@ -617,7 +605,7 @@ export default function App() {
     stopTimers();
 
     try {
-      const freshState = await fetchRoomState(roomId);
+      const freshState = await fetchRoomState(roomId, userId, userName);
       
       // Remove spot and its presence data
       const nextSpots = freshState.spots.filter(s => s.id !== spotId);
