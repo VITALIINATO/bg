@@ -103,7 +103,7 @@ export default function App() {
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(10);
+  const [countdown, setCountdown] = useState<number>(5);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
   const [isParticipantsExpanded, setIsParticipantsExpanded] = useState<boolean>(false);
@@ -162,7 +162,7 @@ export default function App() {
 
   const startTimers = () => {
     stopTimers();
-    setCountdown(10);
+    setCountdown(5);
 
     // Countdown timer (runs every second)
     countdownTimerRef.current = setInterval(() => {
@@ -170,7 +170,7 @@ export default function App() {
         if (prev <= 1) {
           // Trigger sync when countdown hits 0
           syncData();
-          return 10;
+          return 5;
         }
         return prev - 1;
       });
@@ -635,6 +635,7 @@ export default function App() {
 
   // Render check-in / check-out history event
   const renderHistoryItem = (ev: HistoryEvent) => {
+    if (ev.type !== 'check-in') return null;
     const date = new Date(ev.timestamp);
     const timeFormatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const isCurrentUser = ev.userId === userId;
@@ -982,13 +983,6 @@ export default function App() {
                                       </div>
                                     )}
                                   </div>
-
-                                  {/* Right side: quick check-in toggle button */}
-                                  <div className="shrink-0">
-                                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight py-1 px-1.5 rounded bg-black/5 group-hover:bg-black/10 transition-colors text-slate-900 shrink-0">
-                                      {isCurrentUserThere ? 'Уйти' : 'Войти'}
-                                    </span>
-                                  </div>
                                 </div>
                               );
                             }
@@ -1077,12 +1071,7 @@ export default function App() {
                                   )}
                                 </div>
 
-                                {/* Bottom action label */}
-                                <div className="border-t border-slate-150 pt-0.5 text-center leading-none">
-                                  <span className="text-[8px] sm:text-[9px] font-black uppercase text-slate-400 group-hover:text-blue-600 transition-colors">
-                                    {isCurrentUserThere ? 'Уйти' : 'Войти'}
-                                  </span>
-                                </div>
+
                               </div>
                             );
                           })
