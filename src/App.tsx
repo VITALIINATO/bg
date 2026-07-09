@@ -55,10 +55,24 @@ const AVAILABLE_GROUPS = [
   'Группа 13',
   'Группа 14',
   'Группа 15',
-  'Группа 18'
+  'Группа 18',
+  'Наблюдатель'
 ];
 
 const getGroupPassword = (groupName: string): string => {
+  // === ЗДЕСЬ МОЖНО ПОМЕНЯТЬ ПАРОЛИ ДЛЯ ГРУПП И НАБЛЮДАТЕЛЯ ===
+  // Пароль для Наблюдателя:
+  if (groupName === 'Наблюдатель') return '999999999';
+
+  // Для остальных групп пароль генерируется автоматически:
+  // - Если в названии группы одна цифра (например, Группа 6) -> цифра повторяется 8 раз (66666666)
+  // - Если две цифры (например, Группа 13) -> цифры повторяются 4 раза (13131313)
+  // Вы можете вручную переопределить пароль для любой группы ниже:
+  /*
+  if (groupName === 'Группа 6') return '12345678';
+  if (groupName === 'Группа 13') return '87654321';
+  */
+
   const match = groupName.match(/\d+/);
   if (!match) return "00000000";
   const digits = match[0];
@@ -360,6 +374,10 @@ export default function App() {
 
   // CHECK-IN / CHECK-OUT Core Logic
   const handleTogglePresence = async (spotId: string) => {
+    if (selectedGroup === 'Наблюдатель') {
+      alert('Режим наблюдателя: у вас нет возможности отмечаться на геоточках.');
+      return;
+    }
     if (!roomId || !roomState) return;
 
     setIsSaving(true);
@@ -468,6 +486,10 @@ export default function App() {
 
   // Add custom spot
   const handleAddCustomSpot = async (name: string, description: string, x: number, y: number) => {
+    if (selectedGroup !== 'Группа 6') {
+      alert('Добавлять геоточки может только Группа 6.');
+      return;
+    }
     if (!roomId || !roomState) return;
 
     const trimmedName = name.trim();
@@ -519,6 +541,10 @@ export default function App() {
 
   // Edit / Save spot name
   const handleSaveSpotName = async (spotId: string) => {
+    if (selectedGroup !== 'Группа 6') {
+      alert('Редактировать геоточки может только Группа 6.');
+      return;
+    }
     if (!roomId || !roomState) return;
     const trimmed = editingSpotName.trim();
     if (!trimmed) return;
@@ -562,6 +588,11 @@ export default function App() {
   const handleDeleteSpot = async (spotId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // prevent selecting the spot when clicking delete
     
+    if (selectedGroup !== 'Группа 6') {
+      alert('Удалять геоточки может только Группа 6.');
+      return;
+    }
+
     if (!roomId || !roomState) return;
 
     const spotToDelete = roomState.spots.find(s => s.id === spotId);
@@ -1084,7 +1115,7 @@ export default function App() {
                       )}
                     </div>
 
-                    {!isAddingSpot && (
+                    {!isAddingSpot && selectedGroup === 'Группа 6' && (
                       <button
                         onClick={() => setIsAddingSpot(true)}
                         className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
@@ -1265,7 +1296,7 @@ export default function App() {
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <span className="text-[14px]">👥</span>
+                      <span className="text-[14px]">{group === 'Наблюдатель' ? '👁️' : '👥'}</span>
                       <span>{group}</span>
                     </button>
                   );
