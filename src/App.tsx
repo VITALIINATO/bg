@@ -127,6 +127,14 @@ export default function App() {
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const userIdRef = useRef(userId);
+  const userNameRef = useRef(userName);
+  const selectedGroupRef = useRef(selectedGroup);
+
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+  useEffect(() => { userNameRef.current = userName; }, [userName]);
+  useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
+
   // 1. Initialize user from localStorage or generate new
   useEffect(() => {
     let savedUserId = localStorage.getItem('coloc_userid');
@@ -154,10 +162,12 @@ export default function App() {
     setRoomId('d5590d7a9d5aeceb4195');
   }, []);
 
-  // 3. Load room state whenever roomId changes
+  // 3. Load room state whenever roomId, userId, or userName changes
   useEffect(() => {
-    loadRoomData(roomId, true);
-  }, [roomId]);
+    if (roomId) {
+      loadRoomData(roomId, true);
+    }
+  }, [roomId, userId, userName]);
 
   // 4. Polling effect: auto-sync every 10 seconds
   useEffect(() => {
@@ -172,7 +182,7 @@ export default function App() {
     return () => {
       stopTimers();
     };
-  }, [roomId]);
+  }, [roomId, userId, userName, selectedGroup]);
 
   const startTimers = () => {
     stopTimers();
@@ -213,8 +223,13 @@ export default function App() {
   const loadRoomData = async (targetRoomId: string, showSpinner: boolean) => {
     if (showSpinner) setIsLoading(true);
     setError(null);
+    
+    const currentUserId = userIdRef.current || userId;
+    const currentUserName = userNameRef.current || userName;
+    const currentSelectedGroup = selectedGroupRef.current || selectedGroup;
+
     try {
-      const data = await fetchRoomState(targetRoomId, userId, userName);
+      const data = await fetchRoomState(targetRoomId, currentUserId, currentUserName);
       
       // Ensure all default spots exist in the loaded data (healing old data structures)
       let updatedSpots = [...data.spots];
@@ -235,9 +250,9 @@ export default function App() {
       const beforeFilterLength = updatedPresence.length;
       updatedPresence = updatedPresence.filter((p) => p.userName !== 'Наблюдатель');
       
-      const isObserver = selectedGroup === 'Наблюдатель' || userName === 'Наблюдатель' || localStorage.getItem('coloc_selected_group') === 'Наблюдатель';
+      const isObserver = currentSelectedGroup === 'Наблюдатель' || currentUserName === 'Наблюдатель' || localStorage.getItem('coloc_selected_group') === 'Наблюдатель';
       if (isObserver) {
-        updatedPresence = updatedPresence.filter((p) => p.userId !== userId);
+        updatedPresence = updatedPresence.filter((p) => p.userId !== currentUserId);
       }
 
       const nextState = { ...data, spots: updatedSpots, presence: updatedPresence };
