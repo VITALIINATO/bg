@@ -382,9 +382,10 @@ export default function App() {
       const spot = freshState.spots.find((s) => s.id === spotId);
       if (!spot) throw new Error('Геоточка не найдена.');
 
-      // Check if ANYONE is currently checked in at this spot
-      const presencesAtThisSpot = freshState.presence.filter((p) => p.spotId === spotId);
-      const isAnyUserAtThisSpot = presencesAtThisSpot.length > 0;
+      // Check if the CURRENT group is already checked in at this spot
+      const isCurrentGroupAtThisSpot = freshState.presence.some(
+        (p) => (p.userName === selectedGroup || p.userId === userId) && p.spotId === spotId
+      );
 
       let nextPresence = [...freshState.presence];
       let nextHistory = [...freshState.history];
@@ -392,35 +393,36 @@ export default function App() {
       // Format event details
       const nowString = new Date().toISOString();
 
-      if (isAnyUserAtThisSpot) {
-        // --- REMOVE ALL MARKS AT THIS SPOT (Leave 'nobody' / 'никого') ---
-        nextPresence = nextPresence.filter((p) => p.spotId !== spotId);
+      if (isCurrentGroupAtThisSpot) {
+        // --- REMOVE CURRENT GROUP FROM THIS SPOT (Check out) ---
+        nextPresence = nextPresence.filter(
+          (p) => !(p.userName === selectedGroup || p.userId === userId)
+        );
         
-        // Log check-out events for history for everyone who was checked in at this spot
-        for (const presenceUser of presencesAtThisSpot) {
-          const checkOutEvent: HistoryEvent = {
-            id: 'ev-' + generateId(),
-            userId: presenceUser.userId,
-            userName: presenceUser.userName,
-            spotId,
-            spotName: spot.name,
-            type: 'check-out',
-            timestamp: nowString
-          };
-          nextHistory = [checkOutEvent, ...nextHistory];
-        }
-        nextHistory = nextHistory.slice(0, 150); // Keep last 150 events
+        // Log check-out event for history
+        const checkOutEvent: HistoryEvent = {
+          id: 'ev-' + generateId(),
+          userId,
+          userName: selectedGroup || userName,
+          spotId,
+          spotName: spot.name,
+          type: 'check-out',
+          timestamp: nowString
+        };
+        nextHistory = [checkOutEvent, ...nextHistory].slice(0, 150);
       } else {
-        // --- CHECK IN ON EMPTY SPOT ---
-        // A user can only be at ONE spot at a time. If they are somewhere else, automatically check them out from there first!
-        const existingPresences = nextPresence.filter((p) => p.userId === userId);
+        // --- CHECK IN CURRENT GROUP ON THIS SPOT ---
+        // A group can only be at ONE spot at a time. If they are somewhere else, automatically check them out first!
+        const existingPresences = nextPresence.filter(
+          (p) => p.userName === selectedGroup || p.userId === userId
+        );
         
         for (const prev of existingPresences) {
           const prevSpot = freshState.spots.find((s) => s.id === prev.spotId);
           const checkOutEvent: HistoryEvent = {
             id: 'ev-' + generateId(),
             userId,
-            userName,
+            userName: selectedGroup || userName,
             spotId: prev.spotId,
             spotName: prevSpot ? prevSpot.name : 'Предыдущая точка',
             type: 'check-out',
@@ -429,13 +431,15 @@ export default function App() {
           nextHistory = [checkOutEvent, ...nextHistory];
         }
 
-        // Remove previous presence entirely for the current user
-        nextPresence = nextPresence.filter((p) => p.userId !== userId);
+        // Remove previous presence entirely for the current group
+        nextPresence = nextPresence.filter(
+          (p) => !(p.userName === selectedGroup || p.userId === userId)
+        );
 
         // Add new check-in presence for the current group
         nextPresence.push({
           userId,
-          userName,
+          userName: selectedGroup || userName,
           spotId,
           timestamp: nowString
         });
@@ -444,7 +448,7 @@ export default function App() {
         const checkInEvent: HistoryEvent = {
           id: 'ev-' + generateId(),
           userId,
-          userName,
+          userName: selectedGroup || userName,
           spotId,
           spotName: spot.name,
           type: 'check-in',
@@ -460,7 +464,7 @@ export default function App() {
         history: nextHistory,
         // Make sure we exist/are updated in users
         users: freshState.users.map((u) =>
-          u.id === userId ? { ...u, name: userName, lastActive: nowString } : u
+          u.id === userId ? { ...u, name: selectedGroup || userName, lastActive: nowString } : u
         )
       };
 
@@ -695,7 +699,7 @@ export default function App() {
   };
 
   // Find the spot where the current user is active right now
-  const currentUserPresence = roomState?.presence.find(p => p.userId === userId);
+  const currentUserPresence = roomState?.presence.find(p => p.userName === selectedGroup || p.userId === userId);
   const currentUserSpot = currentUserPresence 
     ? roomState?.spots.find(s => s.id === currentUserPresence.spotId)
     : null;
@@ -908,7 +912,7 @@ export default function App() {
                           })
                           .map((spot) => {
                             const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id);
-                            const isCurrentUserThere = usersAtSpot.some(u => u.userId === userId);
+                            const isCurrentUserThere = usersAtSpot.some(u => u.userName === selectedGroup || u.userId === userId);
                             const isSelected = selectedSpotId === spot.id;
                             const isPPD = spot.name === 'ППД';
                             const hasUsers = usersAtSpot.length > 0;
@@ -990,19 +994,22 @@ export default function App() {
                                   <div className="flex-1 flex items-center justify-end gap-2 px-2 min-w-0">
                                     {hasUsers && (
                                       <div className="flex flex-wrap gap-1 items-center justify-end min-w-0 overflow-hidden">
-                                        {usersAtSpot.map((presenceUser) => (
-                                          <span
-                                            key={presenceUser.userId}
-                                            className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase border shadow-xs truncate max-w-[80px] sm:max-w-[120px] ${
-                                              presenceUser.userId === userId
-                                                ? 'bg-slate-950 text-white border-slate-900'
-                                                : 'bg-slate-800 text-white border-slate-900'
-                                            }`}
-                                            title={presenceUser.userName}
-                                          >
-                                            {presenceUser.userName} {presenceUser.userId === userId && '👤'}
-                                          </span>
-                                        ))}
+                                        {usersAtSpot.map((presenceUser) => {
+                                          const isCurrent = presenceUser.userName === selectedGroup || presenceUser.userId === userId;
+                                          return (
+                                            <span
+                                              key={presenceUser.userId}
+                                              className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase border shadow-xs truncate max-w-[80px] sm:max-w-[120px] ${
+                                                isCurrent
+                                                  ? 'bg-slate-950 text-white border-slate-900'
+                                                  : 'bg-slate-800 text-white border-slate-900'
+                                              }`}
+                                              title={presenceUser.userName}
+                                            >
+                                              {presenceUser.userName} {isCurrent && '👤'}
+                                            </span>
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>
@@ -1075,19 +1082,22 @@ export default function App() {
                                 <div className="flex-1 flex items-center justify-center min-h-[14px] sm:min-h-[18px] my-1">
                                   {usersAtSpot.length > 0 ? (
                                     <div className="flex flex-wrap gap-0.5 items-center justify-center max-w-full">
-                                      {usersAtSpot.map((presenceUser) => (
-                                        <span
-                                          key={presenceUser.userId}
-                                          className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
-                                            presenceUser.userId === userId
-                                              ? 'bg-emerald-600 text-white border-emerald-700'
-                                              : 'bg-blue-600 text-white border-blue-700'
-                                          }`}
-                                          title={presenceUser.userName}
-                                        >
-                                          {presenceUser.userName}
-                                        </span>
-                                      ))}
+                                        {usersAtSpot.map((presenceUser) => {
+                                          const isCurrent = presenceUser.userName === selectedGroup || presenceUser.userId === userId;
+                                          return (
+                                            <span
+                                              key={presenceUser.userId}
+                                              className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
+                                                isCurrent
+                                                  ? 'bg-emerald-600 text-white border-emerald-700'
+                                                  : 'bg-blue-600 text-white border-blue-700'
+                                              }`}
+                                              title={presenceUser.userName}
+                                            >
+                                              {presenceUser.userName}
+                                            </span>
+                                          );
+                                        })}
                                     </div>
                                   ) : (
                                     <span className="text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-tight">Никого</span>
