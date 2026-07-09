@@ -737,7 +737,7 @@ export default function App() {
               <span>BG-now</span>
             </h1>
             <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono hidden xs:block">
-              {roomId ? `API: /api/rooms/${roomId.slice(0, 10)}` : 'API: /api/rooms/v1'}
+              {roomId ? `npoint.io: ${roomId}` : 'npoint.io: inactive'}
             </p>
           </div>
         </div>

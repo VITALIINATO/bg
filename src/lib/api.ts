@@ -1,7 +1,7 @@
 import { RoomState } from '../types';
 import { safeLocalStorage } from './storage';
 
-const BASE_URL = '/api/rooms';
+const BASE_URL = 'https://api.npoint.io';
 
 // Default initial state for a newly created room
 export const DEFAULT_SPOTS = [
@@ -29,59 +29,82 @@ export const createInitialState = (roomName: string): RoomState => ({
 });
 
 /**
- * Creates a new JSON bin
+ * Creates a new JSON bin - fallback to hardcoded ID since npoint.io root creation is restricted
  */
 export async function createRoom(roomName: string): Promise<string> {
-  const initialState = createInitialState(roomName);
-  try {
-    const response = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: JSON.stringify(initialState)
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create room: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    if (data.token) {
-      return data.token;
-    }
-    throw new Error('No token returned from server');
-  } catch (error) {
-    console.error('Error creating room on server:', error);
-    throw error;
-  }
+  return 'd5590d7a9d5aeceb4195';
 }
 
 /**
- * Reads the room state from server with robust localStorage fallback
+ * Reads the room state from npoint.io with robust localStorage fallback and client-side heartbeat
  */
 export async function fetchRoomState(binId: string, userId?: string, userName?: string): Promise<RoomState> {
   try {
-    let url = `${BASE_URL}/${binId}`;
-    if (userId && userName) {
-      url += `?userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
-    }
+    const url = `${BASE_URL}/${binId}`;
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch room state: ${response.status} ${response.statusText}`);
     }
     const data = await response.json();
     
+    // Support either direct root format or nested "contents" format
+    const content = data?.contents ? data.contents : data;
+
     const parsed: RoomState = {
-      roomName: data.roomName || 'Общая группа',
-      spots: Array.isArray(data.spots) ? data.spots : [...DEFAULT_SPOTS],
-      users: Array.isArray(data.users) ? data.users : [],
-      presence: Array.isArray(data.presence) ? data.presence : [],
-      history: Array.isArray(data.history) ? data.history : [],
+      roomName: content?.roomName || 'Общая группа',
+      spots: Array.isArray(content?.spots) ? content.spots : [...DEFAULT_SPOTS],
+      users: Array.isArray(content?.users) ? content.users : [],
+      presence: Array.isArray(content?.presence) ? content.presence : [],
+      history: Array.isArray(content?.history) ? content.history : [],
       isOffline: false
     };
+
+    // Client-side user heartbeat (replacing Express server logic)
+    if (userId && userName) {
+      let stateChanged = false;
+      const nowString = new Date().toISOString();
+      const userIndex = parsed.users.findIndex((u: any) => u.id === userId);
+
+      if (userIndex >= 0) {
+        const lastActiveTime = new Date(parsed.users[userIndex].lastActive).getTime();
+        const nowTime = new Date(nowString).getTime();
+        // Only write back heartbeat if name changed or if it has been more than 20 seconds
+        if (parsed.users[userIndex].name !== userName || isNaN(lastActiveTime) || nowTime - lastActiveTime > 20000) {
+          parsed.users[userIndex] = {
+            ...parsed.users[userIndex],
+            name: userName,
+            lastActive: nowString
+          };
+          stateChanged = true;
+        }
+      } else {
+        parsed.users.push({
+          id: userId,
+          name: userName,
+          lastActive: nowString
+        });
+        stateChanged = true;
+      }
+
+      // Clean users who have been inactive for more than 48 hours
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+      const beforeFilterLength = parsed.users.length;
+      parsed.users = parsed.users.filter((u: any) => {
+        const lastActiveTime = new Date(u.lastActive).getTime();
+        return !isNaN(lastActiveTime) && lastActiveTime > cutoff.getTime();
+      });
+
+      if (parsed.users.length !== beforeFilterLength) {
+        stateChanged = true;
+      }
+
+      // If we modified the active users, write back to npoint.io asynchronously
+      if (stateChanged) {
+        updateRoomState(binId, parsed).catch(err => {
+          console.warn('Silent heartbeat update to npoint failed:', err);
+        });
+      }
+    }
 
     // Store a backup in localStorage for offline/static deployment recovery
     try {
@@ -121,7 +144,7 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
 }
 
 /**
- * Overwrites/updates the room state on server with localStorage backup
+ * Overwrites/updates the room state on npoint.io with localStorage backup
  */
 export async function updateRoomState(binId: string, state: RoomState): Promise<boolean> {
   // First, always save to local storage as backup
@@ -132,8 +155,8 @@ export async function updateRoomState(binId: string, state: RoomState): Promise<
   }
 
   try {
-    let response = await fetch(`${BASE_URL}/${binId}`, {
-      method: 'PUT',
+    const response = await fetch(`https://api.npoint.io/${binId}`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
