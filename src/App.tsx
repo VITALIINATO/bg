@@ -751,7 +751,7 @@ export default function App() {
               <span>BG-now</span>
             </h1>
             <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono hidden xs:block">
-              {roomId ? `npoint.io: ${roomId}` : 'npoint.io: inactive'}
+              {roomId ? `ID: ${roomId}` : 'ID: inactive'}
             </p>
           </div>
         </div>

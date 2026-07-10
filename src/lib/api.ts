@@ -1,7 +1,7 @@
 import { RoomState } from '../types';
 import { safeLocalStorage } from './storage';
 
-const BASE_URL = 'https://api.npoint.io';
+const BASE_URL = '/api/rooms';
 
 // Default initial state for a newly created room
 export const DEFAULT_SPOTS = [
@@ -161,7 +161,7 @@ export async function updateRoomState(binId: string, state: RoomState): Promise<
   }
 
   try {
-    const response = await fetch(`https://api.npoint.io/${binId}`, {
+    const response = await fetch(`${BASE_URL}/${binId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

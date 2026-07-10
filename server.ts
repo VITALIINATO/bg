@@ -163,23 +163,31 @@ app.get("/api/rooms/:binId", (req, res) => {
       data.spots = [...DEFAULT_SPOTS];
       stateChanged = true;
     } else {
-      // Self-heal old layout names
-      const hasOldLayout = data.spots.some((s: any) => 
-        s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name)
-      );
-      if (hasOldLayout) {
-        data.spots = [...DEFAULT_SPOTS];
+      // Migrate old names of default spots to their new counterparts if they were not custom renamed
+      let updatedSpots = data.spots.map((spot: any) => {
+        if (!spot) return spot;
+        if (spot.id === 'spot-1' && spot.name === 'ЦУМ') return { ...spot, name: '1', description: 'Геоточка 1' };
+        if (spot.id === 'spot-2' && spot.name === 'Вокзал') return { ...spot, name: '2', description: 'Геоточка 2' };
+        if (spot.id === 'spot-3' && spot.name === 'Парк') return { ...spot, name: '3', description: 'Геоточка 3' };
+        if (spot.id === 'spot-4' && spot.name === 'Площадь') return { ...spot, name: '4', description: 'Геоточка 4' };
+        if (spot.id === 'spot-5' && spot.name === 'Кинотеатр') return { ...spot, name: '5', description: 'Геоточка 5' };
+        return spot;
+      }).filter(Boolean);
+
+      // Save mapped spots if they changed
+      if (JSON.stringify(data.spots) !== JSON.stringify(updatedSpots)) {
+        data.spots = updatedSpots;
         stateChanged = true;
-      } else {
-        // Ensure all default spots exist
-        DEFAULT_SPOTS.forEach((defaultSpot) => {
-          const exists = data.spots.some((s: any) => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
-          if (!exists) {
-            data.spots.push(defaultSpot);
-            stateChanged = true;
-          }
-        });
       }
+
+      // Ensure all default spots exist in the room by checking their ID
+      DEFAULT_SPOTS.forEach((defaultSpot) => {
+        const exists = data.spots.some((s: any) => s && s.id === defaultSpot.id);
+        if (!exists) {
+          data.spots.push(defaultSpot);
+          stateChanged = true;
+        }
+      });
     }
 
     if (stateChanged) {
@@ -212,19 +220,24 @@ const handleUpdate = (req: any, res: any) => {
   if (!newState.spots || !Array.isArray(newState.spots)) {
     newState.spots = [...DEFAULT_SPOTS];
   } else {
-    const hasOldLayout = newState.spots.some((s: any) => 
-      s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name)
-    );
-    if (hasOldLayout) {
-      newState.spots = [...DEFAULT_SPOTS];
-    } else {
-      DEFAULT_SPOTS.forEach((defaultSpot) => {
-        const exists = newState.spots.some((s: any) => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
-        if (!exists) {
-          newState.spots.push(defaultSpot);
-        }
-      });
-    }
+    // Migrate old names of default spots to their new counterparts if they were not custom renamed
+    newState.spots = newState.spots.map((spot: any) => {
+      if (!spot) return spot;
+      if (spot.id === 'spot-1' && spot.name === 'ЦУМ') return { ...spot, name: '1', description: 'Геоточка 1' };
+      if (spot.id === 'spot-2' && spot.name === 'Вокзал') return { ...spot, name: '2', description: 'Геоточка 2' };
+      if (spot.id === 'spot-3' && spot.name === 'Парк') return { ...spot, name: '3', description: 'Геоточка 3' };
+      if (spot.id === 'spot-4' && spot.name === 'Площадь') return { ...spot, name: '4', description: 'Геоточка 4' };
+      if (spot.id === 'spot-5' && spot.name === 'Кинотеатр') return { ...spot, name: '5', description: 'Геоточка 5' };
+      return spot;
+    }).filter(Boolean);
+
+    // Ensure all default spots exist in the room by checking their ID
+    DEFAULT_SPOTS.forEach((defaultSpot) => {
+      const exists = newState.spots.some((s: any) => s && s.id === defaultSpot.id);
+      if (!exists) {
+        newState.spots.push(defaultSpot);
+      }
+    });
   }
 
   roomsCache[binId] = newState;
