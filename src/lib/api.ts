@@ -1,7 +1,7 @@
 import { RoomState } from '../types';
 import { safeLocalStorage } from './storage';
 
-const BASE_URL = '/api/rooms';
+const BASE_URL = 'https://api.npoint.io';
 
 // Default initial state for a newly created room
 export const DEFAULT_SPOTS = [
@@ -50,9 +50,30 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
     // Support either direct root format or nested "contents" format
     const content = data?.contents ? data.contents : data;
 
+    let loadedSpots = Array.isArray(content?.spots) ? content.spots : [...DEFAULT_SPOTS];
+    
+    // Heal/migrate spot names
+    let updatedSpots = loadedSpots.map((spot: any) => {
+      if (!spot) return spot;
+      // Migrate old names of default spots to their new counterparts if they were not custom renamed
+      if (spot.id === 'spot-1' && spot.name === 'ЦУМ') return { ...spot, name: '1', description: 'Геоточка 1' };
+      if (spot.id === 'spot-2' && spot.name === 'Вокзал') return { ...spot, name: '2', description: 'Геоточка 2' };
+      if (spot.id === 'spot-3' && spot.name === 'Парк') return { ...spot, name: '3', description: 'Геоточка 3' };
+      if (spot.id === 'spot-4' && spot.name === 'Площадь') return { ...spot, name: '4', description: 'Геоточка 4' };
+      if (spot.id === 'spot-5' && spot.name === 'Кинотеатр') return { ...spot, name: '5', description: 'Геоточка 5' };
+      return spot;
+    }).filter(Boolean);
+
+    DEFAULT_SPOTS.forEach((defaultSpot) => {
+      const exists = updatedSpots.some((s: any) => s && s.id === defaultSpot.id);
+      if (!exists) {
+        updatedSpots.push(defaultSpot);
+      }
+    });
+
     const parsed: RoomState = {
       roomName: content?.roomName || 'Общая группа',
-      spots: Array.isArray(content?.spots) ? content.spots : [...DEFAULT_SPOTS],
+      spots: updatedSpots,
       users: Array.isArray(content?.users) ? content.users : [],
       presence: Array.isArray(content?.presence) ? content.presence : [],
       history: Array.isArray(content?.history) ? content.history : [],
