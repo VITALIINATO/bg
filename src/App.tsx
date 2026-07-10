@@ -235,18 +235,23 @@ export default function App() {
       setIsOffline(data.isOffline || false);
       
       // Ensure all default spots exist in the loaded data (healing old data structures)
-      let updatedSpots = [...data.spots];
-      const hasOldLayout = updatedSpots.some(s => s && s.name && ['ЦУМ', 'Вокзал', 'Парк', 'Площадь', 'Кинотеатр'].includes(s.name));
-      if (hasOldLayout) {
-        updatedSpots = [...DEFAULT_SPOTS];
-      } else {
-        DEFAULT_SPOTS.forEach((defaultSpot) => {
-          const exists = updatedSpots.some(s => s && s.name && s.name.toUpperCase() === defaultSpot.name.toUpperCase());
-          if (!exists) {
-            updatedSpots.push(defaultSpot);
-          }
-        });
-      }
+      let updatedSpots = data.spots.map(spot => {
+        if (!spot) return spot;
+        // Migrate old names of default spots to their new counterparts if they were not custom renamed
+        if (spot.id === 'spot-1' && spot.name === 'ЦУМ') return { ...spot, name: '1', description: 'Геоточка 1' };
+        if (spot.id === 'spot-2' && spot.name === 'Вокзал') return { ...spot, name: '2', description: 'Геоточка 2' };
+        if (spot.id === 'spot-3' && spot.name === 'Парк') return { ...spot, name: '3', description: 'Геоточка 3' };
+        if (spot.id === 'spot-4' && spot.name === 'Площадь') return { ...spot, name: '4', description: 'Геоточка 4' };
+        if (spot.id === 'spot-5' && spot.name === 'Кинотеатр') return { ...spot, name: '5', description: 'Геоточка 5' };
+        return spot;
+      }).filter(Boolean);
+
+      DEFAULT_SPOTS.forEach((defaultSpot) => {
+        const exists = updatedSpots.some(s => s && s.id === defaultSpot.id);
+        if (!exists) {
+          updatedSpots.push(defaultSpot);
+        }
+      });
 
       // Filter out any presence entries for 'Наблюдатель' to ensure observers are never checked in anywhere
       let updatedPresence = Array.isArray(data.presence) ? [...data.presence] : [];
