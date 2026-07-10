@@ -98,11 +98,9 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
         stateChanged = true;
       }
 
-      // If we modified the active users, write back to npoint.io asynchronously
+      // Mark that there is a heartbeat change so the caller can save it in its consolidated write
       if (stateChanged) {
-        updateRoomState(binId, parsed).catch(err => {
-          console.warn('Silent heartbeat update to npoint failed:', err);
-        });
+        (parsed as any)._hasHeartbeatChange = true;
       }
     }
 
@@ -147,9 +145,17 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
  * Overwrites/updates the room state on npoint.io with localStorage backup
  */
 export async function updateRoomState(binId: string, state: RoomState): Promise<boolean> {
+  // Create a clean copy without internal/temporary fields
+  const cleanState = { ...state };
+  for (const key in cleanState) {
+    if (key.startsWith('_')) {
+      delete (cleanState as any)[key];
+    }
+  }
+
   // First, always save to local storage as backup
   try {
-    safeLocalStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(state));
+    safeLocalStorage.setItem(`coloc_room_state_${binId}`, JSON.stringify(cleanState));
   } catch (e) {
     console.warn('Failed to save room state backup to localStorage:', e);
   }
@@ -160,7 +166,7 @@ export async function updateRoomState(binId: string, state: RoomState): Promise<
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(state),
+      body: JSON.stringify(cleanState),
     });
 
     if (!response.ok) {

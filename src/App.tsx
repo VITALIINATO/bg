@@ -266,10 +266,12 @@ export default function App() {
       const nextState = { ...data, spots: updatedSpots, presence: updatedPresence };
       setRoomState(nextState);
 
-      // Save healed spots and cleaned presence back to server silently ONLY if they actually changed
+      // Save healed spots, cleaned presence, and updated user heartbeats back to server silently ONLY if they actually changed
       const spotsChanged = JSON.stringify(data.spots) !== JSON.stringify(updatedSpots);
       const presenceChanged = beforeFilterLength !== updatedPresence.length || JSON.stringify(data.presence) !== JSON.stringify(updatedPresence);
-      if (spotsChanged || presenceChanged) {
+      const heartbeatChanged = !!(data as any)._hasHeartbeatChange;
+
+      if (spotsChanged || presenceChanged || heartbeatChanged) {
         await updateRoomState(targetRoomId, nextState);
       }
     } catch (err: any) {
@@ -350,9 +352,16 @@ export default function App() {
       if (roomId && roomState) {
         setIsSaving(true);
         try {
-          const updatedUsers = roomState.users.map((u) =>
+          let updatedUsers = roomState.users.map((u) =>
             u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
           );
+          if (!updatedUsers.some((u) => u.id === userId)) {
+            updatedUsers.push({
+              id: userId,
+              name: groupName,
+              lastActive: new Date().toISOString()
+            });
+          }
           // Also update the presence list names
           let updatedPresence = roomState.presence.map((p) =>
             p.userId === userId ? { ...p, userName: groupName } : p
@@ -992,6 +1001,12 @@ export default function App() {
                                           type="text"
                                           value={editingSpotName}
                                           onChange={(e) => setEditingSpotName(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.stopPropagation();
+                                              handleSaveSpotName(spot.id);
+                                            }
+                                          }}
                                           className="px-1.5 py-0.5 text-xs border border-yellow-600 bg-white text-slate-900 rounded focus:ring-1 focus:ring-yellow-500 font-bold uppercase w-28"
                                           autoFocus
                                         />
@@ -1072,6 +1087,12 @@ export default function App() {
                                         type="text"
                                         value={editingSpotName}
                                         onChange={(e) => setEditingSpotName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.stopPropagation();
+                                            handleSaveSpotName(spot.id);
+                                          }
+                                        }}
                                         className="px-1.5 py-0.5 text-xs border border-blue-500 bg-white text-slate-900 rounded focus:ring-1 focus:ring-blue-500 font-bold uppercase w-full"
                                         autoFocus
                                       />
