@@ -46,43 +46,38 @@ const generateId = (length: number = 8): string => {
 };
 
 const AVAILABLE_GROUPS = [
-  'Группа 1',
-  'Группа 3',
-  'Группа 4',
-  'Группа 5',
-  'Группа 6',
-  'Группа 7',
-  'Группа 8',
-  'Группа 13',
-  'Группа 14',
-  'Группа 15',
-  'Группа 18',
+  'Г1',
+  'Ю3',
+  'П4',
+  'В5',
+  'Л6',
+  'С7',
+  'В8',
+  'К9',
+  'С13',
+  'В18',
+  'С19',
   'Наблюдатель'
 ];
 
 const getGroupPassword = (groupName: string): string => {
-  // === ЗДЕСЬ МОЖНО ПОМЕНЯТЬ ПАРОЛИ ДЛЯ ГРУПП И НАБЛЮДАТЕЛЯ ===
-  // Пароль для Наблюдателя:
   if (groupName === 'Наблюдатель') return '999999999';
 
-  // Для остальных групп пароль генерируется автоматически:
-  // - Если в названии группы одна цифра (например, Группа 6) -> цифра повторяется 8 раз (66666666)
-  // - Если две цифры (например, Группа 13) -> цифры повторяются 4 раза (13131313)
-  // Вы можете вручную переопределить пароль для любой группы ниже:
-  /*
-  if (groupName === 'Группа 6') return '12345678';
-  if (groupName === 'Группа 13') return '87654321';
-  */
+  const passwords: Record<string, string> = {
+    'Г1': '7#qA',
+    'Ю3': 'K2!v',
+    'П4': 'z&4M',
+    'В5': '8*Rt',
+    'Л6': 'Y5%c',
+    'С7': '^H1w',
+    'В8': 'm9(L',
+    'К9': 'G6)d',
+    'С13': '7y_E',
+    'В18': 'F8&g',
+    'С19': 'W?1b',
+  };
 
-  const match = groupName.match(/\d+/);
-  if (!match) return "00000000";
-  const digits = match[0];
-  if (digits.length === 1) {
-    return digits.repeat(8);
-  } else if (digits.length === 2) {
-    return digits.repeat(4);
-  }
-  return digits.padEnd(8, digits); // fallback
+  return passwords[groupName] || '00000000';
 };
 
 export default function App() {
@@ -124,6 +119,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
   const [isParticipantsExpanded, setIsParticipantsExpanded] = useState<boolean>(false);
   const [isActivityExpanded, setIsActivityExpanded] = useState<boolean>(false);
+  const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
 
   // --- Refs ---
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -515,8 +511,8 @@ export default function App() {
 
   // Add custom spot
   const handleAddCustomSpot = async (name: string, description: string, x: number, y: number) => {
-    if (selectedGroup !== 'Группа 6') {
-      alert('Добавлять геоточки может только Группа 6.');
+    if (!isGroup6Admin) {
+      alert('Добавлять геоточки может только Л6.');
       return;
     }
     if (!roomId || !roomState) return;
@@ -570,8 +566,8 @@ export default function App() {
 
   // Edit / Save spot name
   const handleSaveSpotName = async (spotId: string) => {
-    if (selectedGroup !== 'Группа 6') {
-      alert('Редактировать геоточки может только Группа 6.');
+    if (!isGroup6Admin) {
+      alert('Редактировать геоточки может только Л6.');
       return;
     }
     if (!roomId || !roomState) return;
@@ -617,8 +613,8 @@ export default function App() {
   const handleDeleteSpot = async (spotId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // prevent selecting the spot when clicking delete
     
-    if (selectedGroup !== 'Группа 6') {
-      alert('Удалять геоточки может только Группа 6.');
+    if (!isGroup6Admin) {
+      alert('Удалять геоточки может только Л6.');
       return;
     }
 
@@ -665,6 +661,25 @@ export default function App() {
     } finally {
       setIsSaving(false);
       startTimers();
+    }
+  };
+
+  const handleClearActivity = async () => {
+    if (!roomId || !roomState) return;
+    setIsSaving(true);
+    setShowClearConfirm(false);
+    try {
+      const freshState = await fetchRoomState(roomId, userId, userName);
+      const nextState: RoomState = {
+        ...freshState,
+        history: []
+      };
+      setRoomState(nextState);
+      await updateRoomState(roomId, nextState);
+    } catch (err) {
+      console.warn('Failed to clear activity:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -737,14 +752,26 @@ export default function App() {
     ? roomState?.spots.find(s => s.id === currentUserPresence.spotId)
     : null;
 
+  const isGroup6Admin = selectedGroup === 'Л6' || selectedGroup === 'Группа 6';
+
+  const activeParticipants = (roomState?.users || []).filter(user => {
+    const userPresence = roomState?.presence.find(p => p.userId === user.id);
+    const userSpot = userPresence ? roomState?.spots.find(s => s.id === userPresence.spotId) : null;
+    return !!userSpot;
+  });
+
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 overflow-x-hidden">
       
       {/* Top Navigation / Header */}
       <header className="h-14 bg-[#1E293B] text-white flex items-center justify-between px-3 sm:px-6 shrink-0 shadow-md">
-        <div className="flex items-center gap-2.5 sm:gap-4">
-          <div className="bg-blue-500 p-1.5 rounded flex items-center justify-center shrink-0">
-            <Compass className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white animate-spin-slow" />
+        <div 
+          onClick={syncData}
+          className="flex items-center gap-2.5 sm:gap-4 cursor-pointer hover:opacity-95 active:scale-95 transition-all duration-150 group"
+          title="Синхронизировать сейчас"
+        >
+          <div className="bg-blue-500 p-1.5 rounded flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors">
+            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-white ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
           </div>
           <div>
             <h1 className="text-[11px] sm:text-sm font-black tracking-wider uppercase flex items-center gap-2">
@@ -848,11 +875,11 @@ export default function App() {
               >
                 <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Участники Группы ({roomState?.users.length || 0})</span>
+                  <span>Участники Группы ({activeParticipants.length})</span>
                 </h2>
                 <div className="flex items-center gap-2">
                   <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
-                    {roomState?.presence.length || 0} на месте
+                    {activeParticipants.length} на месте
                   </span>
                   <div className="lg:hidden">
                     <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isParticipantsExpanded ? 'rotate-90' : ''}`} />
@@ -862,10 +889,10 @@ export default function App() {
               
               <div className={`${isParticipantsExpanded ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'} flex-1`}>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[220px] lg:max-h-none">
-                  {roomState?.users && roomState.users.length > 0 ? (
-                    roomState.users.map((user) => {
-                      const userPresence = roomState.presence.find(p => p.userId === user.id);
-                      const userSpot = userPresence ? roomState.spots.find(s => s.id === userPresence.spotId) : null;
+                  {activeParticipants.length > 0 ? (
+                    activeParticipants.map((user) => {
+                      const userPresence = roomState?.presence.find(p => p.userId === user.id);
+                      const userSpot = userPresence ? roomState?.spots.find(s => s.id === userPresence.spotId) : null;
                       const isMe = user.id === userId;
 
                       return (
@@ -896,7 +923,7 @@ export default function App() {
                       );
                     })
                   ) : (
-                    <p className="text-xs text-slate-400 italic text-center py-4">Список пуст</p>
+                    <p className="text-xs text-slate-400 italic text-center py-4">Список пуст (все off-site)</p>
                   )}
                 </div>
 
@@ -1029,7 +1056,7 @@ export default function App() {
                                           <span>🏠</span>
                                           <span className="truncate">{spot.name}</span>
                                         </h3>
-                                        {selectedGroup === 'Группа 6' && (
+                                        {isGroup6Admin && (
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -1114,7 +1141,7 @@ export default function App() {
                                       <h3 className="text-center w-full text-[11px] sm:text-xs md:text-sm font-black text-slate-950 uppercase tracking-tight break-all leading-tight">
                                         {spot.name}
                                       </h3>
-                                      {selectedGroup === 'Группа 6' && (
+                                      {isGroup6Admin && (
                                         <div className="absolute -right-1 -top-1 flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                           <button
                                             onClick={(e) => {
@@ -1179,7 +1206,7 @@ export default function App() {
                       )}
                     </div>
 
-                    {!isAddingSpot && selectedGroup === 'Группа 6' && (
+                    {!isAddingSpot && isGroup6Admin && (
                       <button
                         onClick={() => setIsAddingSpot(true)}
                         className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
@@ -1200,12 +1227,45 @@ export default function App() {
                 onClick={() => setIsActivityExpanded(!isActivityExpanded)}
                 className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center cursor-pointer lg:cursor-default"
               >
-                <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-                  <span>Лента активности (Live)</span>
-                </h2>
-                <div className="lg:hidden">
-                  <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isActivityExpanded ? 'rotate-90' : ''}`} />
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
+                  <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider truncate">Лента активности (Live)</span>
+                </div>
+                
+                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {isGroup6Admin && (
+                    <div className="flex items-center gap-1">
+                      {showClearConfirm ? (
+                        <>
+                          <button
+                            onClick={handleClearActivity}
+                            className="px-1.5 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold uppercase hover:bg-red-700 transition-colors cursor-pointer"
+                          >
+                            Да
+                          </button>
+                          <button
+                            onClick={() => setShowClearConfirm(false)}
+                            className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[9px] font-bold uppercase hover:bg-slate-300 transition-colors cursor-pointer"
+                          >
+                            Нет
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setShowClearConfirm(true)}
+                          className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded text-[9px] font-bold uppercase transition-all duration-150 flex items-center gap-1 active:scale-95 cursor-pointer"
+                          title="Очистить историю"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Очистить</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="lg:hidden" onClick={() => setIsActivityExpanded(!isActivityExpanded)}>
+                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isActivityExpanded ? 'rotate-90' : ''}`} />
+                  </div>
                 </div>
               </div>
               <div className={`${isActivityExpanded ? 'block' : 'hidden lg:block'} flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[220px] lg:max-h-none`}>
