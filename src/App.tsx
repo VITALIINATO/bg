@@ -259,13 +259,14 @@ export default function App() {
         }
       });
 
-      // Filter out any presence entries for 'Наблюдатель' to ensure observers are never checked in anywhere
+      // Filter out any presence entries for 'Наблюдатель' and 'АДМИН' to ensure they are never checked in anywhere
       let updatedPresence = Array.isArray(data.presence) ? [...data.presence] : [];
       const beforeFilterLength = updatedPresence.length;
-      updatedPresence = updatedPresence.filter((p) => p.userName !== 'Наблюдатель');
+      updatedPresence = updatedPresence.filter((p) => p.userName !== 'Наблюдатель' && p.userName !== 'АДМИН');
       
-      const isObserver = currentSelectedGroup === 'Наблюдатель' || currentUserName === 'Наблюдатель' || safeSessionStorage.getItem('coloc_selected_group') === 'Наблюдатель';
-      if (isObserver) {
+      const isObserverOrAdmin = currentSelectedGroup === 'Наблюдатель' || currentUserName === 'Наблюдатель' || safeSessionStorage.getItem('coloc_selected_group') === 'Наблюдатель' ||
+                               currentSelectedGroup === 'АДМИН' || currentUserName === 'АДМИН' || safeSessionStorage.getItem('coloc_selected_group') === 'АДМИН';
+      if (isObserverOrAdmin) {
         updatedPresence = updatedPresence.filter((p) => p.userId !== currentUserId);
       }
 
@@ -433,8 +434,8 @@ export default function App() {
 
   // CHECK-IN / CHECK-OUT Core Logic
   const handleTogglePresence = async (spotId: string) => {
-    if (selectedGroup === 'Наблюдатель') {
-      alert('Режим наблюдателя: у вас нет возможности отмечаться на геоточках.');
+    if (selectedGroup === 'Наблюдатель' || selectedGroup === 'АДМИН') {
+      // Admin and Observer cannot check in, and warning is removed (simply nothing happens)
       return;
     }
     if (!roomId || !roomState) return;
@@ -762,6 +763,7 @@ export default function App() {
   // Render check-in / check-out history event
   const renderHistoryItem = (ev: HistoryEvent) => {
     if (ev.type !== 'check-in') return null;
+    if (ev.userName === 'АДМИН' || ev.userName === 'Наблюдатель') return null;
     const date = new Date(ev.timestamp);
     const timeFormatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const isCurrentUser = ev.userId === userId;
@@ -806,6 +808,7 @@ export default function App() {
   const isAdmin = selectedGroup === 'АДМИН';
 
   const activeParticipants = (roomState?.presence || [])
+    .filter(p => p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель')
     .map(p => ({
       id: p.userId,
       name: p.userName
@@ -1015,8 +1018,8 @@ export default function App() {
                             if (b.name === 'ППД' && a.name !== 'ППД') return 1;
                             
                             // Then by occupancy (occupied first)
-                            const aOccupied = roomState.presence.some(p => p.spotId === a.id);
-                            const bOccupied = roomState.presence.some(p => p.spotId === b.id);
+                            const aOccupied = roomState.presence.some(p => p.spotId === a.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
+                            const bOccupied = roomState.presence.some(p => p.spotId === b.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
                             if (aOccupied && !bOccupied) return -1;
                             if (!aOccupied && bOccupied) return 1;
 
@@ -1030,7 +1033,7 @@ export default function App() {
                             return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
                           })
                           .map((spot) => {
-                            const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id);
+                            const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
                             const isCurrentUserThere = usersAtSpot.some(u => u.userName === selectedGroup || u.userId === userId);
                             const isSelected = selectedSpotId === spot.id;
                             const isPPD = spot.name === 'ППД';

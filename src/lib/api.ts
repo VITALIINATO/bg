@@ -92,8 +92,15 @@ export async function createRoom(roomName: string): Promise<string> {
  */
 export async function fetchRoomState(binId: string, userId?: string, userName?: string): Promise<RoomState> {
   try {
-    const url = `${BASE_URL}/${binId}`;
-    const response = await fetch(url);
+    // Append a cache-buster query parameter and headers to bypass CDN and browser caching completely
+    const url = `${BASE_URL}/${binId}?t=${Date.now()}`;
+    const response = await fetch(url, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch room state: ${response.status} ${response.statusText}`);
     }
