@@ -9,7 +9,8 @@ import {
   updateRoomState,
   DEFAULT_SPOTS,
   createInitialState,
-  translateGroupName
+  translateGroupName,
+  DEFAULT_BIN_ID
 } from './lib/api';
 import { safeSessionStorage, safeLocalStorage } from './lib/storage';
 import AddSpotForm from './components/AddSpotForm';
@@ -101,7 +102,7 @@ export default function App() {
   const [editingSpotName, setEditingSpotName] = useState<string>('');
 
   // --- Room & Connection State ---
-  const [roomId, setRoomId] = useState<string>('d5590d7a9d5aeceb4195');
+  const [roomId, setRoomId] = useState<string>(DEFAULT_BIN_ID);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -165,7 +166,7 @@ export default function App() {
     }
 
     // Always keep unified session room ID
-    setRoomId('d5590d7a9d5aeceb4195');
+    setRoomId(DEFAULT_BIN_ID);
   }, []);
 
   // 3. Load room state whenever roomId, userId, or userName changes

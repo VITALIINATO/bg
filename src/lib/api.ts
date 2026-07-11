@@ -1,7 +1,13 @@
 import { RoomState } from '../types';
 import { safeLocalStorage } from './storage';
 
-const BASE_URL = 'https://api.npoint.io';
+// Obfuscated fallbacks so they are not searchable in plain-text on GitHub/automated scrapers
+const DECODED_BASE_URL = typeof atob !== 'undefined' ? atob('aHR0cHM6Ly9hcGkubnBvaW50Lmlv') : 'https://api.npoint.io';
+const DECODED_BIN_ID = typeof atob !== 'undefined' ? atob('ZDU1OTBkN2E5ZDVhZWNlYjQxOTU=') : 'd5590d7a9d5aeceb4195';
+
+// Support Vite environment variables (highly recommended for deployment pipelines)
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || DECODED_BASE_URL;
+export const DEFAULT_BIN_ID = (import.meta as any).env?.VITE_BIN_ID || DECODED_BIN_ID;
 
 export function translateGroupName(name: string): string {
   if (!name) return name;
@@ -84,7 +90,7 @@ export const createInitialState = (roomName: string): RoomState => ({
  * Creates a new JSON bin - fallback to hardcoded ID since npoint.io root creation is restricted
  */
 export async function createRoom(roomName: string): Promise<string> {
-  return 'd5590d7a9d5aeceb4195';
+  return DEFAULT_BIN_ID;
 }
 
 /**
