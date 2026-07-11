@@ -1118,8 +1118,9 @@ export default function App() {
                         (() => {
                           const occupiedSpots = [...roomState.spots]
                             .filter(spot => {
+                              const isPPD = spot.name === 'ППД';
                               const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
-                              return usersAtSpot.length > 0;
+                              return isPPD || usersAtSpot.length > 0;
                             })
                             .sort((a, b) => {
                               // "ППД" always first
