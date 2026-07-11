@@ -15,7 +15,6 @@ export function translateGroupName(name: string): string {
     'Группа 6': 'Л6',
     'Группа 7': 'С7',
     'Группа 8': 'В8',
-    'Группа 9': 'К9',
     'Группа 13': 'С13',
     'Группа 14': 'С19',
     'Группа 15': 'Т15',
@@ -28,7 +27,6 @@ export function translateGroupName(name: string): string {
     'Группа Л6': 'Л6',
     'Группа С7': 'С7',
     'Группа В8': 'В8',
-    'Группа К9': 'К9',
     'Группа С13': 'С13',
     'Группа Т15': 'Т15',
     'Группа В18': 'В18',
@@ -48,7 +46,6 @@ export function translateGroupName(name: string): string {
     if (num === '6') return 'Л6';
     if (num === '7') return 'С7';
     if (num === '8') return 'В8';
-    if (num === '9') return 'К9';
     if (num === '13') return 'С13';
     if (num === '15') return 'Т15';
     if (num === '18') return 'В18';

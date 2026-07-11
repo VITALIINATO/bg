@@ -54,7 +54,6 @@ const AVAILABLE_GROUPS = [
   'Л6',
   'С7',
   'В8',
-  'К9',
   'С13',
   'В18',
   'С19',
@@ -74,7 +73,6 @@ const getGroupPassword = (groupName: string): string => {
     'Л6': 'Y5%c',
     'С7': '^H1w',
     'В8': 'm9(L',
-    'К9': 'G6)d',
     'С13': '7y_E',
     'В18': 'F8&g',
     'С19': 'W?1b',
@@ -121,7 +119,6 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
   const [isParticipantsExpanded, setIsParticipantsExpanded] = useState<boolean>(false);
-  const [isActivityExpanded, setIsActivityExpanded] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
 
   // --- Refs ---
@@ -915,7 +912,7 @@ export default function App() {
           /* Connected State: Three column High-Density workspace */
           <>
             {/* COLUMN 1: Sidebar Group Status */}
-            <aside className="w-full lg:w-64 order-2 lg:order-1 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
+            <aside className="w-full lg:w-64 order-3 lg:order-1 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
               <div 
                 onClick={() => setIsParticipantsExpanded(!isParticipantsExpanded)}
                 className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center shrink-0 cursor-pointer lg:cursor-default"
@@ -1267,10 +1264,9 @@ export default function App() {
             </section>
 
             {/* COLUMN 3: Right Side Activity Stream */}
-            <aside className="w-full lg:w-72 order-3 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
+            <aside className="w-full lg:w-72 order-2 lg:order-3 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
               <div 
-                onClick={() => setIsActivityExpanded(!isActivityExpanded)}
-                className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center cursor-pointer lg:cursor-default"
+                className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center"
               >
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
                   <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
@@ -1278,7 +1274,7 @@ export default function App() {
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {isAdmin && (
+                  {selectedGroup && (
                     <div className="flex items-center gap-1">
                       {showClearConfirm ? (
                         <>
@@ -1307,13 +1303,9 @@ export default function App() {
                       )}
                     </div>
                   )}
-
-                  <div className="lg:hidden" onClick={() => setIsActivityExpanded(!isActivityExpanded)}>
-                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isActivityExpanded ? 'rotate-90' : ''}`} />
-                  </div>
                 </div>
               </div>
-              <div className={`${isActivityExpanded ? 'block' : 'hidden lg:block'} flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[220px] lg:max-h-none`}>
+              <div className="block flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[300px] lg:max-h-none">
                 {roomState?.history && roomState.history.filter((ev) => ev.type === 'check-in').length > 0 ? (
                   roomState.history.filter((ev) => ev.type === 'check-in').map((ev) => renderHistoryItem(ev))
                 ) : (
