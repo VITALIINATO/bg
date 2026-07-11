@@ -46,6 +46,7 @@ const generateId = (length: number = 8): string => {
 };
 
 const AVAILABLE_GROUPS = [
+  'АДМИН',
   'Г1',
   'Ю3',
   'П4',
@@ -63,6 +64,7 @@ const AVAILABLE_GROUPS = [
 
 const getGroupPassword = (groupName: string): string => {
   if (groupName === 'Наблюдатель') return '999999999';
+  if (groupName === 'АДМИН') return '!2№4';
 
   const passwords: Record<string, string> = {
     'Г1': '7#qA',
@@ -125,7 +127,7 @@ export default function App() {
   // --- Refs ---
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const activeRequestTokenRef = useRef<number>(0);
+  const activeLoadTokenRef = useRef<number>(0);
 
   const userIdRef = useRef(userId);
   const userNameRef = useRef(userName);
@@ -191,7 +193,7 @@ export default function App() {
 
   const startTimers = () => {
     stopTimers();
-    setCountdown(10);
+    setCountdown(3);
 
     // Countdown timer (runs every second)
     countdownTimerRef.current = setInterval(() => {
@@ -199,7 +201,7 @@ export default function App() {
         if (prev <= 1) {
           // Trigger sync when countdown hits 0
           syncData();
-          return 10;
+          return 3;
         }
         return prev - 1;
       });
@@ -226,7 +228,7 @@ export default function App() {
 
   // Main loader for room data
   const loadRoomData = async (targetRoomId: string, showSpinner: boolean) => {
-    const token = ++activeRequestTokenRef.current;
+    const token = ++activeLoadTokenRef.current;
     if (showSpinner) setIsLoading(true);
     setError(null);
     
@@ -236,7 +238,7 @@ export default function App() {
 
     try {
       const data = await fetchRoomState(targetRoomId, currentUserId, currentUserName);
-      if (token !== activeRequestTokenRef.current) {
+      if (token !== activeLoadTokenRef.current) {
         return; // Discard stale background loaded data
       }
       setIsOffline(data.isOffline || false);
@@ -280,13 +282,13 @@ export default function App() {
       const presenceChanged = beforeFilterLength !== updatedPresence.length || JSON.stringify(data.presence) !== JSON.stringify(updatedPresence);
 
       if (spotsChanged || presenceChanged) {
-        if (token === activeRequestTokenRef.current) {
+        if (token === activeLoadTokenRef.current) {
           await updateRoomState(targetRoomId, nextState);
         }
       }
     } catch (err: any) {
       console.error(err);
-      if (token === activeRequestTokenRef.current) {
+      if (token === activeLoadTokenRef.current) {
         setIsOffline(true);
         if (showSpinner) {
           setError('Не удалось загрузить данные группы. Пожалуйста, проверьте интернет-соединение.');
@@ -295,7 +297,7 @@ export default function App() {
         }
       }
     } finally {
-      if (token === activeRequestTokenRef.current) {
+      if (token === activeLoadTokenRef.current) {
         if (showSpinner) setIsLoading(false);
       }
     }
@@ -312,11 +314,10 @@ export default function App() {
 
     // If already in a room, synchronize the name change
     if (roomId && roomState) {
-      const token = ++activeRequestTokenRef.current;
+      activeLoadTokenRef.current++;
       setIsSaving(true);
       try {
         const freshState = await fetchRoomState(roomId, userId, userName);
-        if (token !== activeRequestTokenRef.current) return;
 
         let updatedUsers = Array.isArray(freshState.users) ? [...freshState.users] : [];
         const hasUser = updatedUsers.some((u) => u.id === userId);
@@ -344,7 +345,6 @@ export default function App() {
         };
 
         await updateRoomState(roomId, nextState);
-        if (token !== activeRequestTokenRef.current) return;
         setRoomState(nextState);
       } catch (err) {
         console.error('Failed to update nickname in room:', err);
@@ -380,11 +380,10 @@ export default function App() {
 
       // If already in a room, synchronize the name change
       if (roomId && roomState) {
-        const token = ++activeRequestTokenRef.current;
+        activeLoadTokenRef.current++;
         setIsSaving(true);
         try {
           const freshState = await fetchRoomState(roomId, userId, userName);
-          if (token !== activeRequestTokenRef.current) return;
 
           let updatedUsers = Array.isArray(freshState.users) ? [...freshState.users] : [];
           const hasUser = updatedUsers.some((u) => u.id === userId);
@@ -416,7 +415,6 @@ export default function App() {
           };
 
           await updateRoomState(roomId, nextState);
-          if (token !== activeRequestTokenRef.current) return;
           setRoomState(nextState);
         } catch (err) {
           console.error('Failed to update group name in room:', err);
@@ -444,14 +442,13 @@ export default function App() {
     }
     if (!roomId || !roomState) return;
 
-    const token = ++activeRequestTokenRef.current;
+    activeLoadTokenRef.current++;
     setIsSaving(true);
     stopTimers(); // pause polling during transaction
     
     try {
       // Re-fetch latest state to prevent race conditions as much as possible
       const freshState = await fetchRoomState(roomId, userId, userName);
-      if (token !== activeRequestTokenRef.current) return;
       
       const spot = freshState.spots.find((s) => s.id === spotId);
       if (!spot) throw new Error('Геоточка не найдена.');
@@ -555,25 +552,20 @@ export default function App() {
 
       // Push back to server
       await updateRoomState(roomId, nextState);
-      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
     } catch (err: any) {
       console.error(err);
-      if (token === activeRequestTokenRef.current) {
-        alert('Ошибка при сохранении статуса. Пожалуйста, попробуйте обновить страницу.');
-      }
+      alert('Ошибка при сохранении статуса. Пожалуйста, попробуйте обновить страницу.');
     } finally {
-      if (token === activeRequestTokenRef.current) {
-        setIsSaving(false);
-        startTimers(); // resume polling
-      }
+      setIsSaving(false);
+      startTimers(); // resume polling
     }
   };
 
   // Add custom spot
   const handleAddCustomSpot = async (name: string, description: string) => {
-    if (!isGroup6Admin) {
-      alert('Добавлять геоточки может только Л6.');
+    if (!isAdmin) {
+      alert('Добавлять геоточки может только АДМИН.');
       return;
     }
     if (!roomId || !roomState) return;
@@ -584,13 +576,12 @@ export default function App() {
       return;
     }
 
-    const token = ++activeRequestTokenRef.current;
+    activeLoadTokenRef.current++;
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
-      if (token !== activeRequestTokenRef.current) return;
       
       const nameExists = freshState.spots.some(
         (s) => s.name.trim().toLowerCase() === trimmedName.toLowerCase()
@@ -612,40 +603,34 @@ export default function App() {
       };
 
       await updateRoomState(roomId, nextState);
-      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
       setIsAddingSpot(false);
       setSelectedSpotId(newSpot.id); // select newly created spot
     } catch (err) {
       console.error(err);
-      if (token === activeRequestTokenRef.current) {
-        alert('Не удалось добавить новую геоточку. Попробуйте еще раз.');
-      }
+      alert('Не удалось добавить новую геоточку. Попробуйте еще раз.');
     } finally {
-      if (token === activeRequestTokenRef.current) {
-        setIsSaving(false);
-        startTimers();
-      }
+      setIsSaving(false);
+      startTimers();
     }
   };
 
   // Edit / Save spot name
   const handleSaveSpotName = async (spotId: string) => {
-    if (!isGroup6Admin) {
-      alert('Редактировать геоточки может только Л6.');
+    if (!isAdmin) {
+      alert('Редактировать геоточки может только АДМИН.');
       return;
     }
     if (!roomId || !roomState) return;
     const trimmed = editingSpotName.trim();
     if (!trimmed) return;
 
-    const token = ++activeRequestTokenRef.current;
+    activeLoadTokenRef.current++;
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
-      if (token !== activeRequestTokenRef.current) return;
       
       const nameExists = freshState.spots.some(
         (s) => s.id !== spotId && s.name.trim().toLowerCase() === trimmed.toLowerCase()
@@ -665,19 +650,14 @@ export default function App() {
       };
 
       await updateRoomState(roomId, nextState);
-      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
       setEditingSpotId(null);
     } catch (err) {
       console.error('Failed to update spot name:', err);
-      if (token === activeRequestTokenRef.current) {
-        alert('Не удалось изменить название геоточки.');
-      }
+      alert('Не удалось изменить название геоточки.');
     } finally {
-      if (token === activeRequestTokenRef.current) {
-        setIsSaving(false);
-        startTimers();
-      }
+      setIsSaving(false);
+      startTimers();
     }
   };
 
@@ -685,8 +665,8 @@ export default function App() {
   const handleDeleteSpot = async (spotId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // prevent selecting the spot when clicking delete
     
-    if (!isGroup6Admin) {
-      alert('Удалять геоточки может только Л6.');
+    if (!isAdmin) {
+      alert('Удалять геоточки может только АДМИН.');
       return;
     }
 
@@ -706,13 +686,12 @@ export default function App() {
       }
     }
 
-    const token = ++activeRequestTokenRef.current;
+    activeLoadTokenRef.current++;
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
-      if (token !== activeRequestTokenRef.current) return;
       
       // Remove spot and its presence data
       const nextSpots = freshState.spots.filter(s => s.id !== spotId);
@@ -725,45 +704,36 @@ export default function App() {
       };
 
       await updateRoomState(roomId, nextState);
-      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
       if (selectedSpotId === spotId) {
         setSelectedSpotId(null);
       }
     } catch (err) {
       console.error(err);
-      if (token === activeRequestTokenRef.current) {
-        alert('Ошибка при удалении точки.');
-      }
+      alert('Ошибка при удалении точки.');
     } finally {
-      if (token === activeRequestTokenRef.current) {
-        setIsSaving(false);
-        startTimers();
-      }
+      setIsSaving(false);
+      startTimers();
     }
   };
 
   const handleClearActivity = async () => {
     if (!roomId || !roomState) return;
-    const token = ++activeRequestTokenRef.current;
+    activeLoadTokenRef.current++;
     setIsSaving(true);
     setShowClearConfirm(false);
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
-      if (token !== activeRequestTokenRef.current) return;
       const nextState: RoomState = {
         ...freshState,
         history: []
       };
       await updateRoomState(roomId, nextState);
-      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
     } catch (err) {
       console.warn('Failed to clear activity:', err);
     } finally {
-      if (token === activeRequestTokenRef.current) {
-        setIsSaving(false);
-      }
+      setIsSaving(false);
     }
   };
 
@@ -836,7 +806,7 @@ export default function App() {
     ? roomState?.spots.find(s => s.id === currentUserPresence.spotId)
     : null;
 
-  const isGroup6Admin = selectedGroup === 'Л6' || selectedGroup === 'Группа 6';
+  const isAdmin = selectedGroup === 'АДМИН';
 
   const activeParticipants = (roomState?.presence || [])
     .map(p => ({
@@ -1096,7 +1066,7 @@ export default function App() {
                                   className={`${cardStyle} col-span-3 min-h-[45px] sm:min-h-[55px] rounded-lg sm:rounded-xl px-3 py-1.5 shadow-xs flex flex-row items-center justify-between gap-4 relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
                                 >
                                   {/* Left side: title and admin editing */}
-                                  <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center gap-2 min-w-0" onClick={(e) => { if (editingSpotId === spot.id) e.stopPropagation(); }}>
                                     {editingSpotId === spot.id ? (
                                       <div className="flex items-center gap-1">
                                         <input
@@ -1131,7 +1101,7 @@ export default function App() {
                                           <span>🏠</span>
                                           <span className="truncate">{spot.name}</span>
                                         </h3>
-                                        {isGroup6Admin && (
+                                        {isAdmin && (
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -1216,8 +1186,8 @@ export default function App() {
                                       <h3 className="text-center w-full text-[11px] sm:text-xs md:text-sm font-black text-slate-950 uppercase tracking-tight break-all leading-tight">
                                         {spot.name}
                                       </h3>
-                                      {isGroup6Admin && (
-                                        <div className="absolute -right-1 -top-1 flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                      {isAdmin && (
+                                        <div className="absolute -right-1 -top-1 flex items-center gap-0.5 shrink-0 lg:opacity-0 lg:group-hover:opacity-100 opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -1281,7 +1251,7 @@ export default function App() {
                       )}
                     </div>
 
-                    {!isAddingSpot && isGroup6Admin && (
+                    {!isAddingSpot && isAdmin && (
                       <button
                         onClick={() => setIsAddingSpot(true)}
                         className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
@@ -1308,7 +1278,7 @@ export default function App() {
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {isGroup6Admin && (
+                  {isAdmin && (
                     <div className="flex items-center gap-1">
                       {showClearConfirm ? (
                         <>
