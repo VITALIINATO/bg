@@ -46,7 +46,6 @@ const generateId = (length: number = 8): string => {
 };
 
 const AVAILABLE_GROUPS = [
-  'АДМИН',
   'Г1',
   'Ю3',
   'П4',
@@ -55,9 +54,10 @@ const AVAILABLE_GROUPS = [
   'С7',
   'В8',
   'С13',
+  'Т15',
   'В18',
   'С19',
-  'Т15',
+  'АДМИН',
   'Наблюдатель'
 ];
 
@@ -771,27 +771,27 @@ export default function App() {
 
     // Different color markers based on action type
     const borderClass = isCheckIn 
-      ? 'border-l-2 border-emerald-500' 
-      : 'border-l-2 border-slate-300';
+      ? 'border-l-[3px] border-[#2D5A27] bg-[#E2F0D9]/10' 
+      : 'border-l-[3px] border-stone-400 bg-stone-50/10';
 
     return (
       <div
         key={ev.id}
-        className={`${borderClass} pl-3 py-1.5 transition-all text-[11px] hover:bg-slate-50`}
+        className={`${borderClass} pl-3 py-1.5 transition-all text-[11px] hover:bg-[#EAECE1]/30 rounded-r`}
       >
-        <div className="flex items-center justify-between text-slate-400 text-[10px] font-mono">
-          <span>{timeFormatted}</span>
-          {isCurrentUser && <span className="text-[9px] font-mono bg-indigo-50 text-indigo-600 px-1 rounded">Вы</span>}
+        <div className="flex items-center justify-between text-stone-400 text-[10px] font-mono">
+          <span className="font-bold">{timeFormatted}</span>
+          {isCurrentUser && <span className="text-[9px] font-mono bg-[#485638] text-[#E6E8D2] px-1 rounded uppercase font-black">Вы</span>}
         </div>
-        <p className="mt-0.5 text-slate-700 leading-tight">
-          <strong className="text-slate-900 font-semibold">{ev.userName}</strong>{' '}
+        <p className="mt-0.5 text-[#2D3524] leading-tight">
+          <strong className="text-[#1C1F15] font-black uppercase font-mono">{ev.userName}</strong>{' '}
           {isCheckIn ? (
             <span>
-              прибыл на <span className="text-emerald-600 font-bold uppercase">{ev.spotName}</span>
+              прибыл на <span className="text-[#2D5A27] font-black uppercase">{ev.spotName}</span>
             </span>
           ) : (
             <span>
-              снялся с <span className="text-slate-500 font-bold uppercase">{ev.spotName}</span>
+              снялся с <span className="text-stone-500 font-black uppercase">{ev.spotName}</span>
             </span>
           )}
         </p>
@@ -818,24 +818,25 @@ export default function App() {
     );
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-[#E1E4D5] flex flex-col font-sans text-[#2D3325] overflow-x-hidden">
       
       {/* Top Navigation / Header */}
-      <header className="h-14 bg-[#1E293B] text-white flex items-center justify-between px-3 sm:px-6 shrink-0 shadow-md">
+      <header className="h-14 bg-[#232B1B] border-b-2 border-[#3E4A34] text-[#E6E8D2] flex items-center justify-between px-3 sm:px-6 shrink-0 shadow-md">
         <div 
           onClick={syncData}
           className="flex items-center gap-2.5 sm:gap-4 cursor-pointer hover:opacity-95 active:scale-95 transition-all duration-150 group"
           title="Синхронизировать сейчас"
         >
-          <div className="bg-blue-500 p-1.5 rounded flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors">
-            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-white ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
+          <div className="bg-[#485638] border border-[#5B6D47] p-1.5 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-[#5B6D47] transition-colors shadow-inner">
+            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#E6E8D2] ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
           </div>
           <div>
-            <h1 className="text-[11px] sm:text-sm font-black tracking-wider uppercase flex items-center gap-2">
-              <span>BG-now</span>
+            <h1 className="text-[11px] sm:text-sm font-black tracking-widest uppercase flex items-center gap-2 text-[#E6E8D2]">
+              <span>BG-NOW</span>
+              <span className="text-[9px] px-1 bg-[#3E4A34] text-[#A3E635] rounded font-mono border border-[#485638] tracking-normal animate-pulse">TACTICAL</span>
             </h1>
-            <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono hidden xs:block">
-              {roomId ? `ID: ${roomId}` : 'ID: inactive'}
+            <p className="text-[9px] sm:text-[10px] text-[#A3B899] font-mono hidden xs:block tracking-wide">
+              {roomId ? `SECTOR: ${roomId}` : 'SECTOR: OFFLINE'}
             </p>
           </div>
         </div>
@@ -846,15 +847,15 @@ export default function App() {
           {roomId && (
             <button
               onClick={() => setShowGroupSelector(true)}
-              className="text-right flex flex-col justify-center cursor-pointer hover:bg-slate-700/60 px-2.5 py-1 rounded-lg border border-slate-700 transition-all text-white bg-slate-800/40 text-left"
+              className="text-right flex flex-col justify-center cursor-pointer hover:bg-[#3E4A34]/60 px-2.5 py-1 rounded-lg border border-[#3E4A34] transition-all text-[#E6E8D2] bg-[#232B1B]/60 text-left hover:border-[#E6E8D2]/30"
             >
               <div className="flex flex-col">
-                <p className="text-[10px] sm:text-[11px] font-black tracking-tight leading-tight flex items-center gap-1">
+                <p className="text-[10px] sm:text-[11px] font-black tracking-widest uppercase leading-tight flex items-center gap-1.5">
                   <span>{userName}</span>
-                  <Settings className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                  <Settings className="w-2.5 h-2.5 text-[#A3B899] shrink-0 animate-spin-slow" />
                 </p>
-                <p className="text-[8px] sm:text-[10px] text-emerald-400 font-semibold leading-tight">
-                  {currentUserSpot ? `На точке: ${currentUserSpot.name}` : 'Вне точек'}
+                <p className="text-[8px] sm:text-[10px] text-[#A3E635] font-black font-mono leading-tight uppercase">
+                  {currentUserSpot ? `ПОЗИЦИЯ: ${currentUserSpot.name}` : 'ВНЕ ПОЗИЦИИ'}
                 </p>
               </div>
             </button>
@@ -862,19 +863,19 @@ export default function App() {
 
           <div 
             onClick={() => setShowGroupSelector(true)}
-            className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-xs font-black text-white cursor-pointer hover:bg-blue-500 transition-colors shrink-0 ${
-              currentUserSpot ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-slate-900' : ''
+            className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-lg bg-[#485638] border border-[#5B6D47] flex items-center justify-center text-xs font-black text-[#E6E8D2] cursor-pointer hover:bg-[#5B6D47] hover:text-white transition-all shrink-0 ${
+              currentUserSpot ? 'ring-2 ring-[#A3E635] ring-offset-1 ring-offset-[#232B1B]' : ''
             }`}
             title="Нажмите для выбора группы"
           >
-            {userName && userName.startsWith('Группа ') ? userName.replace('Группа ', '') : 'G'}
+            {userName && userName.startsWith('Группа ') ? userName.replace('Группа ', '') : userName ? userName.substring(0, 2) : 'G'}
           </div>
         </div>
       </header>
 
       {/* Offline Alert Banner */}
       {isOffline && (
-        <div className="bg-amber-500 text-slate-900 px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-md shrink-0">
+        <div className="bg-[#D97706] text-white px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center justify-between gap-3 shadow-md shrink-0 border-b border-[#B45309]">
           <div className="flex items-center gap-2">
             <span className="text-base shrink-0">⚠️</span>
             <span>Вы работаете в локальном (автономном) режиме. Данные будут синхронизированы при восстановлении связи с сервером.</span>
@@ -882,7 +883,7 @@ export default function App() {
           <button 
             onClick={syncData}
             disabled={isSyncing}
-            className="px-3 py-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shrink-0 font-bold active:scale-95 disabled:opacity-50 text-xs cursor-pointer"
+            className="px-3 py-1 bg-[#232B1B] text-[#E6E8D2] hover:bg-[#3E4A34] rounded-lg hover:text-white transition-all shrink-0 font-bold active:scale-95 disabled:opacity-50 text-xs cursor-pointer border border-[#3E4A34]"
           >
             {isSyncing ? 'Подключение...' : 'Подключиться'}
           </button>
@@ -915,21 +916,21 @@ export default function App() {
           /* Connected State: Three column High-Density workspace */
           <>
             {/* COLUMN 1: Sidebar Group Status */}
-            <aside className="w-full lg:w-64 order-3 lg:order-1 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
+            <aside className="w-full lg:w-64 order-3 lg:order-1 bg-[#FAFBF7] border-2 border-[#3E4A34]/30 rounded-xl flex flex-col shrink-0 shadow-md overflow-hidden transition-all duration-300">
               <div 
                 onClick={() => setIsParticipantsExpanded(!isParticipantsExpanded)}
-                className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center shrink-0 cursor-pointer lg:cursor-default"
+                className="p-3 border-b border-[#3E4A34]/20 bg-[#3E4A34] text-[#E6E8D2] flex justify-between items-center shrink-0 cursor-pointer lg:cursor-default"
               >
-                <h2 className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-blue-500" />
+                <h2 className="text-[11px] font-black uppercase text-[#E6E8D2] tracking-widest flex items-center gap-1.5 font-sans">
+                  <Users className="w-3.5 h-3.5 text-[#F59E0B]" />
                   <span>Участники Группы ({activeParticipants.length})</span>
                 </h2>
                 <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
-                    {activeParticipants.length} на месте
+                  <span className="px-1.5 py-0.5 bg-[#485638] text-[#E6E8D2] text-[9px] font-bold rounded uppercase border border-[#3E4A34]/40 font-mono">
+                    {activeParticipants.length} ON-SITE
                   </span>
                   <div className="lg:hidden">
-                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isParticipantsExpanded ? 'rotate-90' : ''}`} />
+                    <ChevronRight className={`w-3.5 h-3.5 text-[#A3B899] transition-transform duration-200 ${isParticipantsExpanded ? 'rotate-90' : ''}`} />
                   </div>
                 </div>
               </div>
@@ -945,40 +946,42 @@ export default function App() {
                       return (
                         <div
                           key={user.id}
-                          className={`flex items-center justify-between p-2 rounded text-xs transition-all ${
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs transition-all ${
                             userSpot 
                               ? isMe 
-                                ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium'
-                                : 'bg-blue-50 border border-blue-100 text-blue-900'
-                              : 'hover:bg-slate-50 border border-transparent text-slate-600'
+                                ? 'bg-[#E2F0D9] border border-[#2D5A27]/40 text-[#1C3E18] font-bold shadow-xs'
+                                : 'bg-[#EAECE1] border border-[#3E4A34]/20 text-[#2D3524]'
+                              : 'hover:bg-[#EAECE1]/40 border border-transparent text-stone-500 font-medium'
                           }`}
                         >
-                          <span className="truncate flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${userSpot ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                          <span className="truncate flex items-center gap-1.5 font-mono">
+                            <span className={`w-1.5 h-1.5 rounded-full ${userSpot ? 'bg-[#2D5A27] animate-pulse' : 'bg-stone-300'}`}></span>
                             <span className="truncate">{user.name} {isMe && '(Вы)'}</span>
                           </span>
                           {userSpot ? (
-                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                              isMe ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                              isMe 
+                                ? 'bg-[#2D5A27] text-white border-[#1C3E18]' 
+                                : 'bg-[#485638] text-[#E6E8D2] border-[#3E4A34]'
                             } truncate max-w-[90px]`}>
                               {userSpot.name}
                             </span>
                           ) : (
-                            <span className="text-[9px] text-slate-400 font-mono">OFF-SITE</span>
+                            <span className="text-[9px] text-stone-400 font-mono font-bold tracking-wider">OFF-SITE</span>
                           )}
                         </div>
                       );
                     })
                   ) : (
-                    <p className="text-xs text-slate-400 italic text-center py-4">Список пуст (все off-site)</p>
+                    <p className="text-xs text-stone-400 italic text-center py-4 font-mono uppercase tracking-wide">Список пуст (все off-site)</p>
                   )}
                 </div>
 
                 {/* Compact Database Sync Status */}
-                <div className="p-3 border-t border-slate-100 bg-slate-50 shrink-0 text-[10px]">
-                  <p className="text-slate-500 leading-normal font-semibold text-center flex items-center justify-center gap-1.5">
-                    <Database className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-                    <span>Общая сессия активна</span>
+                <div className="p-3 border-t border-[#3E4A34]/20 bg-[#EAECE1]/40 shrink-0 text-[10px]">
+                  <p className="text-[#3E4A34] leading-normal font-black text-center flex items-center justify-center gap-1.5 font-mono tracking-wider">
+                    <Database className="w-3.5 h-3.5 text-[#2D5A27] animate-pulse" />
+                    <span>ОБЩАЯ СЕССИЯ АКТИВНА</span>
                   </p>
                 </div>
               </div>
@@ -1039,22 +1042,22 @@ export default function App() {
                             const isPPD = spot.name === 'ППД';
                             const hasUsers = usersAtSpot.length > 0;
 
-                            // ⚡️ Dynamic card styling with maximum visual contrast as requested!
+                            // ⚡️ Military style tactical cards with maximum visual contrast as requested!
                             let cardStyle = '';
                             if (isPPD) {
                               if (hasUsers) {
-                                cardStyle = 'border-2 border-yellow-500 bg-yellow-400 text-slate-950 shadow-md font-black';
+                                cardStyle = 'border-[3px] border-[#D97706] bg-[#F59E0B] text-stone-950 shadow-lg font-black tracking-wider';
                               } else {
-                                cardStyle = 'border border-slate-200 bg-slate-50/50 hover:bg-white text-slate-800';
+                                cardStyle = 'border-2 border-dashed border-[#485638]/40 bg-[#FAFBF7]/85 hover:bg-[#FAFBF7] text-[#3E4A34]';
                               }
                             } else {
                               cardStyle = isCurrentUserThere
-                                ? 'border-2 border-emerald-600 bg-emerald-50 shadow-md ring-2 ring-emerald-500/10'
+                                ? 'border-[3px] border-[#2D5A27] bg-[#E2F0D9] shadow-lg ring-2 ring-[#2D5A27]/20 text-[#1C3E18] font-bold'
                                 : hasUsers
-                                ? 'border-2 border-amber-500 bg-amber-50 shadow-md animate-pulse-subtle'
+                                ? 'border-[3px] border-[#D97706] bg-[#FEF3C7] shadow-lg animate-pulse-subtle text-[#78350F] font-bold'
                                 : isSelected
-                                ? 'border-2 border-blue-500 bg-white shadow-sm'
-                                : 'border border-slate-200 bg-slate-50/30 hover:border-slate-300 hover:bg-white';
+                                ? 'border-[3px] border-[#485638] bg-[#FAFBF7] shadow-md ring-2 ring-[#485638]/10 text-[#2D3524]'
+                                : 'border-2 border-[#485638]/20 bg-[#FAFBF7]/90 hover:border-[#485638]/40 hover:bg-white text-[#3E4A34]';
                             }
 
                             // 🏠 Layout 1: Special horizontal card for "ППД" (3 columns, half height, static yellow)
@@ -1223,8 +1226,8 @@ export default function App() {
                                               key={presenceUser.userId}
                                               className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
                                                 isCurrent
-                                                  ? 'bg-emerald-600 text-white border-emerald-700'
-                                                  : 'bg-blue-600 text-white border-blue-700'
+                                                  ? 'bg-[#2D5A27] text-white border-[#1C3E18]'
+                                                  : 'bg-[#485638] text-[#E6E8D2] border-[#3E4A34]'
                                               }`}
                                               title={presenceUser.userName}
                                             >
@@ -1254,9 +1257,9 @@ export default function App() {
                     {!isAddingSpot && isAdmin && (
                       <button
                         onClick={() => setIsAddingSpot(true)}
-                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                        className="w-full py-3 bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] hover:text-white text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-colors border-2 border-[#2D3524] tracking-widest uppercase"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-4 h-4 text-[#F59E0B]" />
                         <span>ДОБАВИТЬ НОВУЮ ГЕОТОЧКУ</span>
                       </button>
                     )}
@@ -1267,13 +1270,13 @@ export default function App() {
             </section>
 
             {/* COLUMN 3: Right Side Activity Stream */}
-            <aside className="w-full lg:w-72 order-2 lg:order-3 bg-white border border-slate-200 rounded-lg flex flex-col shrink-0 shadow-sm overflow-hidden transition-all duration-300">
+            <aside className="w-full lg:w-72 order-2 lg:order-3 mt-12 lg:mt-0 bg-[#FAFBF7] border-2 border-[#3E4A34]/30 rounded-xl flex flex-col shrink-0 shadow-md overflow-hidden transition-all duration-300">
               <div 
-                className="p-3 border-b border-slate-100 bg-[#F8FAFC] flex justify-between items-center"
+                className="p-3 border-b border-[#3E4A34]/20 bg-[#3E4A34] flex justify-between items-center"
               >
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                  <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
-                  <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider truncate">Лента активности (Live)</span>
+                  <Clock className="w-3.5 h-3.5 text-[#F59E0B] animate-pulse shrink-0" />
+                  <span className="text-[11px] font-black uppercase text-[#E6E8D2] tracking-widest truncate font-sans">ЛЕНТА АКТИВНОСТИ (Live)</span>
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1283,13 +1286,13 @@ export default function App() {
                         <>
                           <button
                             onClick={handleClearActivity}
-                            className="px-1.5 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold uppercase hover:bg-red-700 transition-colors cursor-pointer"
+                            className="px-1.5 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold uppercase hover:bg-red-700 transition-colors cursor-pointer font-mono"
                           >
                             Да
                           </button>
                           <button
                             onClick={() => setShowClearConfirm(false)}
-                            className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[9px] font-bold uppercase hover:bg-slate-300 transition-colors cursor-pointer"
+                            className="px-1.5 py-0.5 bg-[#485638] text-[#E6E8D2] rounded text-[9px] font-bold uppercase hover:bg-[#5B6D47] transition-colors cursor-pointer font-mono"
                           >
                             Нет
                           </button>
@@ -1297,10 +1300,10 @@ export default function App() {
                       ) : (
                         <button
                           onClick={() => setShowClearConfirm(true)}
-                          className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded text-[9px] font-bold uppercase transition-all duration-150 flex items-center gap-1 active:scale-95 cursor-pointer"
+                          className="px-2 py-1 bg-[#232B1B] text-[#E6E8D2] hover:bg-[#D97706] hover:text-white border border-[#3E4A34]/60 rounded-md text-[9px] font-black uppercase transition-all duration-150 flex items-center gap-1 active:scale-95 cursor-pointer font-mono"
                           title="Очистить историю"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3 h-3 text-[#F59E0B]" />
                           <span>Очистить</span>
                         </button>
                       )}
@@ -1326,24 +1329,24 @@ export default function App() {
 
       {/* Group Selection Overlay */}
       {(showGroupSelector || !selectedGroup) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#232B1B]/85 backdrop-blur-md">
+          <div className="bg-[#FAFBF7] rounded-xl w-full max-w-md border-2 border-[#3E4A34] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             
             {/* Header */}
-            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+            <div className="p-5 border-b border-[#3E4A34]/20 bg-[#3E4A34] text-[#E6E8D2] flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-sm font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <span>Выбор вашей группы</span>
+                <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 font-sans text-[#E6E8D2]">
+                  <Users className="w-4 h-4 text-[#F59E0B]" />
+                  <span>ВЫБОР ВАШЕЙ ГРУППЫ</span>
                 </h2>
-                <p className="text-[10px] text-slate-400 font-medium mt-1">
+                <p className="text-[10px] text-[#A3B899] font-semibold mt-1">
                   Выберите группу, от имени которой вы будете отмечаться на точках
                 </p>
               </div>
               {selectedGroup && (
                 <button 
                   onClick={() => setShowGroupSelector(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-[#A3B899] hover:text-[#E6E8D2] hover:bg-[#485638] rounded-lg transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1395,13 +1398,13 @@ export default function App() {
                         setPasswordInput('');
                         setPasswordError(null);
                       }}
-                      className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                      className="flex-1 py-2 bg-[#EAECE1] hover:bg-[#FAFBF7] text-[#3E4A34] border border-[#3E4A34]/20 text-xs font-bold rounded-lg transition-colors cursor-pointer"
                     >
                       Назад
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+                      className="flex-1 py-2 bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] hover:text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs border border-[#2D3524]"
                     >
                       Войти
                     </button>
@@ -1419,8 +1422,8 @@ export default function App() {
                       onClick={() => handleSelectGroup(group)}
                       className={`py-3.5 px-3 rounded-xl text-xs font-black tracking-tight transition-all duration-200 uppercase text-center flex flex-col items-center justify-center gap-1 cursor-pointer border ${
                         isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                          ? 'bg-[#2D5A27] text-white border-[#1C3E18] shadow-md scale-[1.02]'
+                          : 'bg-[#EAECE1]/50 hover:bg-[#EAECE1] text-[#3E4A34] border-[#3E4A34]/25 hover:border-[#3E4A34]/45'
                       }`}
                     >
                       <span className="text-[14px]">{group === 'Наблюдатель' ? '👁️' : '👥'}</span>
@@ -1432,7 +1435,7 @@ export default function App() {
             )}
 
             {/* Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-[9px] text-slate-400 font-medium font-mono shrink-0">
+            <div className="p-4 bg-[#EAECE1]/60 border-t border-[#3E4A34]/20 text-center text-[9px] text-[#3E4A34] font-black font-mono shrink-0 uppercase tracking-wider">
               {selectedGroup && selectedGroup !== 'Группа не выбрана' ? `Текущий выбор: ${selectedGroup}` : 'Необходимо выбрать группу для продолжения'}
             </div>
           </div>
