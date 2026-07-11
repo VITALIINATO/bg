@@ -1000,20 +1000,20 @@ export default function App() {
                     
                     {/* ТАКТИЧЕСКИЙ ПУЛЬТ ОТМЕТОК (ТОЛЬКО ДЛЯ УЧАСТНИКОВ) */}
                     {selectedGroup !== 'АДМИН' && selectedGroup !== 'Наблюдатель' && (
-                      <div className="bg-[#FAFBF7] border-2 border-[#3E4A34]/40 rounded-xl p-4 shadow-md">
-                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/20">
-                          <div className="flex items-center gap-1.5 text-[#2D3524] font-black text-xs uppercase tracking-wider">
-                            <Compass className="w-4 h-4 text-[#F59E0B] compass-flash" />
+                      <div className="bg-stone-100/45 border border-stone-200 rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-stone-200">
+                          <div className="flex items-center gap-1.5 text-stone-500 font-bold text-[10px] uppercase tracking-wider">
+                            <Compass className="w-3.5 h-3.5 text-stone-400" />
                             <span>ОТМЕТКА НА ПОЗИЦИИ</span>
                           </div>
                           {currentUserSpot && (
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-[#2D5A27] bg-[#E2F0D9] border border-[#2D5A27]/25 px-2 py-0.5 rounded-md uppercase font-mono">
+                              <span className="text-[10px] font-bold text-stone-600 bg-stone-200 border border-stone-300 px-2 py-0.5 rounded-md uppercase font-mono">
                                 📍 {currentUserSpot.name}
                               </span>
                               <button
                                 onClick={() => handleTogglePresence(currentUserSpot.id)}
-                                className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white border border-red-700 rounded text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer font-mono"
+                                className="px-1.5 py-0.5 bg-stone-200 hover:bg-stone-300 text-stone-700 border border-stone-300 rounded text-[8px] font-black uppercase tracking-wider transition-colors cursor-pointer font-mono"
                               >
                                 СНЯТЬСЯ
                               </button>
@@ -1026,7 +1026,7 @@ export default function App() {
                             <select
                               value={selectedSpotToCheckIn}
                               onChange={(e) => setSelectedSpotToCheckIn(e.target.value)}
-                              className="bg-[#FAFBF7] border-2 border-[#3E4A34]/30 hover:border-[#3E4A34]/50 rounded-lg px-3 py-2 text-xs font-bold text-[#3E4A34] focus:border-[#2D5A27] focus:ring-1 focus:ring-[#2D5A27] outline-none flex-1 font-mono uppercase transition-colors"
+                              className="bg-white border border-stone-200 hover:border-stone-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-stone-600 focus:border-stone-400 focus:ring-1 focus:ring-stone-200 outline-none flex-1 font-mono uppercase transition-colors"
                             >
                               <option value="">-- ВЫБЕРИТЕ ГЕОТОЧКУ --</option>
                               {(roomState?.spots || []).map(spot => (
@@ -1038,14 +1038,14 @@ export default function App() {
 
                             <button
                               onClick={() => setIsAddingSpot(!isAddingSpot)}
-                              className={`p-2 rounded-lg flex items-center justify-center transition-all border-2 cursor-pointer shrink-0 ${
+                              className={`p-1.5 rounded-lg flex items-center justify-center transition-all border cursor-pointer shrink-0 ${
                                 isAddingSpot 
-                                  ? 'bg-amber-500 border-amber-600 text-slate-950' 
-                                  : 'bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] border-[#2D3524]'
+                                  ? 'bg-stone-200 border-stone-300 text-stone-800' 
+                                  : 'bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-300'
                               }`}
                               title="Добавить новую геоточку"
                             >
-                              <Plus className="w-5 h-5" />
+                              <Plus className="w-4 h-4" />
                             </button>
                           </div>
 
@@ -1057,15 +1057,15 @@ export default function App() {
                               }
                               handleTogglePresence(selectedSpotToCheckIn);
                             }}
-                            className="px-4 py-2 bg-[#2D5A27] hover:bg-[#1C3E18] text-white rounded-lg text-xs font-black tracking-widest uppercase transition-all duration-150 shadow-sm border border-[#1C3E18] flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="px-3.5 py-1.5 bg-[#E2F0D9] hover:bg-[#d5e8cb] text-[#2D5A27] rounded-lg text-[10px] font-black tracking-widest uppercase transition-all duration-150 border border-[#2D5A27]/30 flex items-center justify-center gap-1 cursor-pointer"
                           >
-                            <Check className="w-4 h-4 text-[#A3E635]" />
+                            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
                             <span>ПОДТВЕРДИТЬ</span>
                           </button>
                         </div>
 
                         {isAddingSpot && (
-                          <div className="mt-4 pt-4 border-t border-[#3E4A34]/15">
+                          <div className="mt-3 pt-3 border-t border-stone-200">
                             <AddSpotForm
                               onAddSpot={async (name, description) => {
                                 await handleAddCustomSpot(name, description);
@@ -1082,10 +1082,10 @@ export default function App() {
 
                     {/* УПРАВЛЕНИЕ ГЕОТОЧКАМИ ДЛЯ АДМИНА */}
                     {selectedGroup === 'АДМИН' && (
-                      <div className="bg-[#FAFBF7] border-2 border-[#3E4A34]/40 rounded-xl p-4 shadow-md">
-                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/20">
-                          <div className="flex items-center gap-1.5 text-[#2D3524] font-black text-xs uppercase tracking-wider">
-                            <Compass className="w-4 h-4 text-[#F59E0B] compass-flash" />
+                      <div className="bg-stone-100/45 border border-stone-200 rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-stone-200">
+                          <div className="flex items-center gap-1.5 text-stone-500 font-bold text-[10px] uppercase tracking-wider">
+                            <Compass className="w-3.5 h-3.5 text-stone-400" />
                             <span>УПРАВЛЕНИЕ ГЕОТОЧКАМИ (АДМИН)</span>
                           </div>
                         </div>
@@ -1093,7 +1093,7 @@ export default function App() {
                         {!isAddingSpot ? (
                           <button
                             onClick={() => setIsAddingSpot(true)}
-                            className="w-full py-2.5 bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] hover:text-white text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-colors border-2 border-[#2D3524] tracking-widest uppercase cursor-pointer"
+                            className="w-full py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 hover:text-stone-900 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition-colors border border-stone-300 tracking-wider uppercase cursor-pointer"
                           >
                             <Plus className="w-4 h-4 text-[#F59E0B]" />
                             <span>ДОБАВИТЬ НОВУЮ ГЕОТОЧКУ</span>
@@ -1159,27 +1159,27 @@ export default function App() {
                             let cardStyle = '';
                             if (isPPD) {
                               if (hasUsers) {
-                                cardStyle = 'border-[3px] border-[#D97706] bg-[#F59E0B] text-stone-950 shadow-lg font-black tracking-wider';
+                                cardStyle = 'border-[3px] border-amber-500 bg-amber-50 text-slate-900 shadow-md font-bold transition-all duration-200';
                               } else {
-                                cardStyle = 'border-2 border-dashed border-[#485638]/40 bg-[#FAFBF7]/85 hover:bg-[#FAFBF7] text-[#3E4A34]';
+                                cardStyle = 'border border-dashed border-stone-200 bg-stone-50/50 text-stone-400 opacity-65 hover:opacity-100 transition-all duration-200';
                               }
                             } else {
                               cardStyle = isCurrentUserThere
-                                ? 'border-[3px] border-[#2D5A27] bg-[#E2F0D9] shadow-lg ring-2 ring-[#2D5A27]/20 text-[#1C3E18] font-bold'
+                                ? 'border-[3px] border-emerald-600 bg-emerald-50 text-emerald-950 shadow-md ring-2 ring-emerald-500/10 font-bold transition-all duration-200'
                                 : hasUsers
-                                ? 'border-[3px] border-[#D97706] bg-[#FEF3C7] shadow-lg animate-pulse-subtle text-[#78350F] font-bold'
+                                ? 'border-[3px] border-amber-500 bg-amber-50 text-amber-950 shadow-md font-bold transition-all duration-200'
                                 : isSelected
-                                ? 'border-[3px] border-[#485638] bg-[#FAFBF7] shadow-md ring-2 ring-[#485638]/10 text-[#2D3524]'
-                                : 'border-2 border-[#485638]/20 bg-[#FAFBF7]/90 hover:border-[#485638]/40 hover:bg-white text-[#3E4A34]';
+                                ? 'border-2 border-stone-400 bg-white text-stone-700 font-bold transition-all duration-200 shadow-xs'
+                                : 'border border-stone-200 bg-stone-50/40 hover:border-stone-300 hover:bg-stone-50 text-stone-400 transition-all duration-200';
                             }
 
                             // Horizontal card for ППД
                             if (isPPD) {
-                              return (
+                               return (
                                 <div
                                   key={spot.id}
                                   onClick={() => handleTogglePresence(spot.id)}
-                                  className={`${cardStyle} col-span-3 min-h-[45px] sm:min-h-[55px] rounded-lg sm:rounded-xl px-3 py-1.5 shadow-xs flex flex-row items-center justify-between gap-4 relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
+                                  className={`${cardStyle} col-span-3 min-h-[45px] sm:min-h-[55px] rounded-lg sm:rounded-xl px-3 py-1.5 flex flex-row items-center justify-between gap-4 relative cursor-pointer group hover:shadow-md`}
                                 >
                                   {/* Title and editing */}
                                   <div className="flex items-center gap-2 min-w-0" onClick={(e) => { if (editingSpotId === spot.id) e.stopPropagation(); }}>
@@ -1213,7 +1213,7 @@ export default function App() {
                                       </div>
                                     ) : (
                                       <div className="flex items-center gap-1.5 min-w-0">
-                                        <h3 className="text-xs sm:text-sm font-black uppercase tracking-tight flex items-center gap-1 leading-none text-slate-950 truncate">
+                                        <h3 className={`text-xs sm:text-sm font-black uppercase tracking-tight flex items-center gap-1 leading-none truncate ${hasUsers ? 'text-amber-900' : 'text-stone-400'}`}>
                                           <span>🏠</span>
                                           <span className="truncate">{spot.name}</span>
                                         </h3>
@@ -1243,10 +1243,10 @@ export default function App() {
                                           return (
                                             <span
                                               key={presenceUser.userId}
-                                              className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase border shadow-xs truncate max-w-[80px] sm:max-w-[120px] ${
+                                              className={`px-2 py-0.5 rounded text-[9px] sm:text-[10px] md:text-xs font-black uppercase border shadow-sm truncate max-w-[100px] sm:max-w-[140px] ${
                                                 isCurrent
-                                                  ? 'bg-slate-950 text-white border-slate-900'
-                                                  : 'bg-slate-800 text-white border-slate-900'
+                                                  ? 'bg-emerald-600 text-white border-emerald-700'
+                                                  : 'bg-amber-600 text-white border-amber-700'
                                               }`}
                                               title={presenceUser.userName}
                                             >
@@ -1266,7 +1266,7 @@ export default function App() {
                               <div
                                 key={spot.id}
                                 onClick={() => handleTogglePresence(spot.id)}
-                                className={`${cardStyle} rounded-lg sm:rounded-xl p-1.5 sm:p-2.5 shadow-xs flex flex-col justify-between relative transition-all duration-200 cursor-pointer group hover:shadow-md min-h-[55px] sm:min-h-[70px]`}
+                                className={`${cardStyle} rounded-lg sm:rounded-xl p-1.5 sm:p-2.5 flex flex-col justify-between relative cursor-pointer group hover:shadow-md min-h-[55px] sm:min-h-[70px]`}
                               >
                                 <div className="w-full relative">
                                   {editingSpotId === spot.id ? (
@@ -1299,7 +1299,7 @@ export default function App() {
                                     </div>
                                   ) : (
                                     <>
-                                      <h3 className="text-center w-full text-[11px] sm:text-xs md:text-sm font-black text-slate-950 uppercase tracking-tight break-all leading-tight">
+                                      <h3 className={`text-center w-full text-xs sm:text-sm md:text-base font-black uppercase tracking-tight break-all leading-tight ${hasUsers ? (isCurrentUserThere ? 'text-emerald-900' : 'text-amber-900') : 'text-stone-400'}`}>
                                         {spot.name}
                                       </h3>
                                       {isAdmin && (
@@ -1336,10 +1336,10 @@ export default function App() {
                                         return (
                                           <span
                                             key={presenceUser.userId}
-                                            className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
+                                            className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] md:text-xs font-black text-center uppercase tracking-tight shadow-sm border truncate max-w-[80px] sm:max-w-[120px] ${
                                               isCurrent
-                                                ? 'bg-[#2D5A27] text-white border-[#1C3E18]'
-                                                : 'bg-[#485638] text-[#E6E8D2] border-[#3E4A34]'
+                                                ? 'bg-emerald-600 text-white border-emerald-700'
+                                                : 'bg-amber-600 text-white border-amber-700'
                                             }`}
                                             title={presenceUser.userName}
                                           >
@@ -1349,7 +1349,7 @@ export default function App() {
                                       })}
                                     </div>
                                   ) : (
-                                    <span className="text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-tight">Никого</span>
+                                    <span className="text-[7px] sm:text-[8px] font-bold text-stone-300 uppercase tracking-wider font-mono">Пусто</span>
                                   )}
                                 </div>
                               </div>
