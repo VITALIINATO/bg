@@ -17,7 +17,6 @@ import {
   MapPin,
   Users,
   RefreshCw,
-  LogOut,
   Share2,
   Copy,
   Plus,
@@ -137,6 +136,7 @@ export default function App() {
 
   // 1. Initialize user from safeSessionStorage or generate new
   useEffect(() => {
+    document.title = 'КТО ГДЕ КОГДА';
     let savedUserId = safeSessionStorage.getItem('coloc_userid');
     const rawSavedGroup = safeSessionStorage.getItem('coloc_selected_group');
     const savedGroup = rawSavedGroup ? translateGroupName(rawSavedGroup) : null;
@@ -786,17 +786,7 @@ export default function App() {
           </div>
         </div>
 
-        {roomId && (
-          <div className="hidden md:flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`}></span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
-                Сессия: {isOffline ? `${roomState?.roomName || 'Общая группа'} (Локальный режим)` : (roomState?.roomName || 'Синхронизация...')}
-              </span>
-            </div>
-            <div className="h-8 w-[1px] bg-slate-700"></div>
-          </div>
-        )}
+
 
         <div className="flex items-center gap-2 sm:gap-3">
           {roomId && (
@@ -1283,40 +1273,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Controls / Sync Info (Only if connected) */}
-      {roomId && roomState && (
-        <footer className="bg-white border-t border-slate-200 p-4 flex items-center justify-between gap-4 shrink-0 shadow-lg">
-          <div className="text-[11px] text-slate-400 font-mono">
-            © 2026 BG-now
-          </div>
-          
-          <div className="flex gap-2">
-            <button
-              onClick={syncData}
-              disabled={isSyncing}
-              className="p-2.5 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center"
-              title="Принудительная синхронизация"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            </button>
 
-            <button
-              onClick={handleLeaveRoom}
-              className="p-2.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-full hover:bg-rose-100 transition-colors"
-              title="Выйти из этой группы"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </footer>
-      )}
-
-      {/* Small informative baseline footer */}
-      {!roomId && (
-        <footer className="bg-white border-t border-slate-100 py-3.5 text-center text-[11px] text-slate-400 font-mono">
-          © 2026 BG-now • Встроенная синхронизация • Развертывание в реальном времени
-        </footer>
-      )}
 
       {/* Group Selection Overlay */}
       {(showGroupSelector || !selectedGroup) && (
