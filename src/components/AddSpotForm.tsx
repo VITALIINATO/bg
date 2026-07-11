@@ -1,34 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Spot } from '../types';
-import { MapPin, Plus, X, Crosshair } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, X } from 'lucide-react';
 
 interface AddSpotFormProps {
-  onAddSpot: (name: string, description: string, x: number, y: number) => void;
+  onAddSpot: (name: string, description: string) => void;
   onCancel: () => void;
-  selectedCoords?: { x: number; y: number } | null;
 }
 
 export default function AddSpotForm({
   onAddSpot,
-  onCancel,
-  selectedCoords
+  onCancel
 }: AddSpotFormProps) {
   const [name, setName] = useState('');
-  const [x, setX] = useState<number>(50);
-  const [y, setY] = useState<number>(50);
-
-  // Sync selected map coordinates from prop
-  useEffect(() => {
-    if (selectedCoords) {
-      setX(selectedCoords.x);
-      setY(selectedCoords.y);
-    }
-  }, [selectedCoords]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onAddSpot(name.trim(), "", x, y);
+    onAddSpot(name.trim(), "");
     setName('');
   };
 

@@ -8,7 +8,8 @@ import {
   fetchRoomState,
   updateRoomState,
   DEFAULT_SPOTS,
-  createInitialState
+  createInitialState,
+  translateGroupName
 } from './lib/api';
 import { safeSessionStorage, safeLocalStorage } from './lib/storage';
 import AddSpotForm from './components/AddSpotForm';
@@ -57,6 +58,7 @@ const AVAILABLE_GROUPS = [
   'С13',
   'В18',
   'С19',
+  'Т15',
   'Наблюдатель'
 ];
 
@@ -75,6 +77,7 @@ const getGroupPassword = (groupName: string): string => {
     'С13': '7y_E',
     'В18': 'F8&g',
     'С19': 'W?1b',
+    'Т15': 'Q4!x',
   };
 
   return passwords[groupName] || '00000000';
@@ -108,13 +111,12 @@ export default function App() {
 
   // --- Spot Addition State ---
   const [isAddingSpot, setIsAddingSpot] = useState<boolean>(false);
-  const [newSpotCoords, setNewSpotCoords] = useState<{ x: number; y: number } | null>(null);
   
   // --- UI Interactivity State ---
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(5);
+  const [countdown, setCountdown] = useState<number>(10);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
   const [isParticipantsExpanded, setIsParticipantsExpanded] = useState<boolean>(false);
@@ -136,7 +138,11 @@ export default function App() {
   // 1. Initialize user from safeSessionStorage or generate new
   useEffect(() => {
     let savedUserId = safeSessionStorage.getItem('coloc_userid');
-    const savedGroup = safeSessionStorage.getItem('coloc_selected_group');
+    const rawSavedGroup = safeSessionStorage.getItem('coloc_selected_group');
+    const savedGroup = rawSavedGroup ? translateGroupName(rawSavedGroup) : null;
+    if (savedGroup) {
+      safeSessionStorage.setItem('coloc_selected_group', savedGroup);
+    }
 
     if (!savedUserId) {
       savedUserId = 'u-' + generateId();
@@ -184,7 +190,7 @@ export default function App() {
 
   const startTimers = () => {
     stopTimers();
-    setCountdown(5);
+    setCountdown(10);
 
     // Countdown timer (runs every second)
     countdownTimerRef.current = setInterval(() => {
@@ -192,7 +198,7 @@ export default function App() {
         if (prev <= 1) {
           // Trigger sync when countdown hits 0
           syncData();
-          return 5;
+          return 10;
         }
         return prev - 1;
       });
@@ -510,7 +516,7 @@ export default function App() {
   };
 
   // Add custom spot
-  const handleAddCustomSpot = async (name: string, description: string, x: number, y: number) => {
+  const handleAddCustomSpot = async (name: string, description: string) => {
     if (!isGroup6Admin) {
       alert('Добавлять геоточки может только Л6.');
       return;
@@ -540,9 +546,7 @@ export default function App() {
       const newSpot: Spot = {
         id: 'spot-' + generateId(),
         name: trimmedName,
-        description,
-        x,
-        y
+        description
       };
 
       const nextState: RoomState = {
@@ -553,7 +557,6 @@ export default function App() {
       await updateRoomState(roomId, nextState);
       setRoomState(nextState);
       setIsAddingSpot(false);
-      setNewSpotCoords(null);
       setSelectedSpotId(newSpot.id); // select newly created spot
     } catch (err) {
       console.error(err);
@@ -957,9 +960,7 @@ export default function App() {
                           onAddSpot={handleAddCustomSpot}
                           onCancel={() => {
                             setIsAddingSpot(false);
-                            setNewSpotCoords(null);
                           }}
-                          selectedCoords={newSpotCoords}
                         />
                       </div>
                     )}
@@ -1284,17 +1285,9 @@ export default function App() {
 
       {/* Bottom Controls / Sync Info (Only if connected) */}
       {roomId && roomState && (
-        <footer className="bg-white border-t border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-lg">
-          <div className="text-left">
-            <p className="text-[10px] font-semibold flex items-center gap-1.5 justify-center sm:justify-start">
-              <span className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'} ${isSyncing ? 'animate-ping' : ''}`}></span>
-              <span className={isOffline ? 'text-amber-600' : 'text-emerald-600'}>
-                {isOffline ? 'Локальный режим (нет связи с сервером)' : 'Общая сессия активна (онлайн)'}
-              </span>
-            </p>
-            <p className="text-xs font-mono text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start mt-0.5">
-              <span>{isOffline ? 'Повторное подключение через:' : 'Синхронизация через:'} <strong>{countdown}с</strong></span>
-            </p>
+        <footer className="bg-white border-t border-slate-200 p-4 flex items-center justify-between gap-4 shrink-0 shadow-lg">
+          <div className="text-[11px] text-slate-400 font-mono">
+            © 2026 BG-now
           </div>
           
           <div className="flex gap-2">
@@ -1370,10 +1363,10 @@ export default function App() {
                 <form onSubmit={handleConfirmPassword} className="space-y-4">
                   <div>
                     <input
-                      type="password"
+                      type="text"
                       autoFocus
                       required
-                      placeholder="Введите 8-значный пароль"
+                      placeholder="Введите пароль"
                       value={passwordInput}
                       onChange={(e) => {
                         setPasswordInput(e.target.value);

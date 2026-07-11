@@ -3,21 +3,76 @@ import { safeLocalStorage } from './storage';
 
 const BASE_URL = 'https://api.npoint.io';
 
-// Default initial state for a newly created room
+export function translateGroupName(name: string): string {
+  if (!name) return name;
+  const trimmed = name.trim();
+  
+  const dict: Record<string, string> = {
+    'Группа 1': 'Г1',
+    'Группа 3': 'Ю3',
+    'Группа 4': 'П4',
+    'Группа 5': 'В5',
+    'Группа 6': 'Л6',
+    'Группа 7': 'С7',
+    'Группа 8': 'В8',
+    'Группа 9': 'К9',
+    'Группа 13': 'С13',
+    'Группа 14': 'С19',
+    'Группа 15': 'Т15',
+    'Группа 18': 'В18',
+    'Группа 19': 'С19',
+    'Группа Г1': 'Г1',
+    'Группа Ю3': 'Ю3',
+    'Группа П4': 'П4',
+    'Группа В5': 'В5',
+    'Группа Л6': 'Л6',
+    'Группа С7': 'С7',
+    'Группа В8': 'В8',
+    'Группа К9': 'К9',
+    'Группа С13': 'С13',
+    'Группа Т15': 'Т15',
+    'Группа В18': 'В18',
+    'Группа С19': 'С19',
+  };
+
+  if (dict[trimmed]) return dict[trimmed];
+
+  // Try numerical extract
+  const numMatch = trimmed.match(/\d+/);
+  if (numMatch) {
+    const num = numMatch[0];
+    if (num === '1') return 'Г1';
+    if (num === '3') return 'Ю3';
+    if (num === '4') return 'П4';
+    if (num === '5') return 'В5';
+    if (num === '6') return 'Л6';
+    if (num === '7') return 'С7';
+    if (num === '8') return 'В8';
+    if (num === '9') return 'К9';
+    if (num === '13') return 'С13';
+    if (num === '15') return 'Т15';
+    if (num === '18') return 'В18';
+    if (num === '19') return 'С19';
+  }
+
+  return name;
+}
+
+// Default initial state for a newly created room without x,y coordinates
 export const DEFAULT_SPOTS = [
-  { id: 'spot-ppd', name: 'ППД', description: 'Пункт постоянной дислокации', x: 50, y: 50 },
-  { id: 'spot-1', name: '1', description: 'Геоточка 1', x: 20, y: 15 },
-  { id: 'spot-2', name: '2', description: 'Геоточка 2', x: 50, y: 15 },
-  { id: 'spot-3', name: '3', description: 'Геоточка 3', x: 80, y: 15 },
-  { id: 'spot-4', name: '4', description: 'Геоточка 4', x: 20, y: 35 },
-  { id: 'spot-5', name: '5', description: 'Геоточка 5', x: 80, y: 35 },
-  { id: 'spot-6', name: '6', description: 'Геоточка 6', x: 20, y: 65 },
-  { id: 'spot-7', name: '7', description: 'Геоточка 7', x: 80, y: 65 },
-  { id: 'spot-8', name: '8', description: 'Геоточка 8', x: 20, y: 85 },
-  { id: 'spot-9', name: '9', description: 'Геоточка 9', x: 50, y: 85 },
-  { id: 'spot-10', name: '10', description: 'Геоточка 10', x: 80, y: 85 },
-  { id: 'spot-11', name: '11', description: 'Геоточка 11', x: 35, y: 50 },
-  { id: 'spot-12', name: '12', description: 'Геоточка 12', x: 65, y: 50 }
+  { id: 'spot-ppd', name: 'ППД', description: 'Пункт постоянной дислокации' },
+  { id: 'spot-1', name: '1', description: 'Геоточка 1' },
+  { id: 'spot-2', name: '2', description: 'Геоточка 2' },
+  { id: 'spot-3', name: '3', description: 'Геоточка 3' },
+  { id: 'spot-4', name: '4', description: 'Геоточка 4' },
+  { id: 'spot-5', name: '5', description: 'Геоточка 5' },
+  { id: 'spot-6', name: '6', description: 'Геоточка 6' },
+  { id: 'spot-7', name: '7', description: 'Геоточка 7' },
+  { id: 'spot-8', name: '8', description: 'Геоточка 8' },
+  { id: 'spot-9', name: '9', description: 'Геоточка 9' },
+  { id: 'spot-10', name: '10', description: 'Геоточка 10' },
+  { id: 'spot-11', name: '11', description: 'Геоточка 11' },
+  { id: 'spot-12', name: '12', description: 'Геоточка 12' }
 ];
 
 export const createInitialState = (roomName: string): RoomState => ({
@@ -71,12 +126,21 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
       }
     });
 
+    const rawUsers = Array.isArray(content?.users) ? content.users : [];
+    const mappedUsers = rawUsers.map((u: any) => u ? { ...u, name: translateGroupName(u.name) } : u).filter(Boolean);
+
+    const rawPresence = Array.isArray(content?.presence) ? content.presence : [];
+    const mappedPresence = rawPresence.map((p: any) => p ? { ...p, userName: translateGroupName(p.userName) } : p).filter(Boolean);
+
+    const rawHistory = Array.isArray(content?.history) ? content.history : [];
+    const mappedHistory = rawHistory.map((ev: any) => ev ? { ...ev, userName: translateGroupName(ev.userName) } : ev).filter(Boolean);
+
     const parsed: RoomState = {
       roomName: content?.roomName || 'Общая группа',
       spots: updatedSpots,
-      users: Array.isArray(content?.users) ? content.users : [],
-      presence: Array.isArray(content?.presence) ? content.presence : [],
-      history: Array.isArray(content?.history) ? content.history : [],
+      users: mappedUsers,
+      presence: mappedPresence,
+      history: mappedHistory,
       isOffline: false
     };
 
@@ -141,12 +205,21 @@ export async function fetchRoomState(binId: string, userId?: string, userName?: 
       const saved = safeLocalStorage.getItem(`coloc_room_state_${binId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const rawUsers = Array.isArray(parsed.users) ? parsed.users : [];
+        const mappedUsers = rawUsers.map((u: any) => u ? { ...u, name: translateGroupName(u.name) } : u).filter(Boolean);
+
+        const rawPresence = Array.isArray(parsed.presence) ? parsed.presence : [];
+        const mappedPresence = rawPresence.map((p: any) => p ? { ...p, userName: translateGroupName(p.userName) } : p).filter(Boolean);
+
+        const rawHistory = Array.isArray(parsed.history) ? parsed.history : [];
+        const mappedHistory = rawHistory.map((ev: any) => ev ? { ...ev, userName: translateGroupName(ev.userName) } : ev).filter(Boolean);
+
         return {
           roomName: parsed.roomName || 'Общая группа',
           spots: Array.isArray(parsed.spots) ? parsed.spots : [...DEFAULT_SPOTS],
-          users: Array.isArray(parsed.users) ? parsed.users : [],
-          presence: Array.isArray(parsed.presence) ? parsed.presence : [],
-          history: Array.isArray(parsed.history) ? parsed.history : [],
+          users: mappedUsers,
+          presence: mappedPresence,
+          history: mappedHistory,
           isOffline: true
         };
       }
