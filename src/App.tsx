@@ -125,6 +125,7 @@ export default function App() {
   // --- Refs ---
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const activeRequestTokenRef = useRef<number>(0);
 
   const userIdRef = useRef(userId);
   const userNameRef = useRef(userName);
@@ -225,6 +226,7 @@ export default function App() {
 
   // Main loader for room data
   const loadRoomData = async (targetRoomId: string, showSpinner: boolean) => {
+    const token = ++activeRequestTokenRef.current;
     if (showSpinner) setIsLoading(true);
     setError(null);
     
@@ -234,6 +236,9 @@ export default function App() {
 
     try {
       const data = await fetchRoomState(targetRoomId, currentUserId, currentUserName);
+      if (token !== activeRequestTokenRef.current) {
+        return; // Discard stale background loaded data
+      }
       setIsOffline(data.isOffline || false);
       
       // Ensure all default spots exist in the loaded data (healing old data structures)
@@ -268,24 +273,31 @@ export default function App() {
       const nextState = { ...data, spots: updatedSpots, presence: updatedPresence };
       setRoomState(nextState);
 
-      // Save healed spots, cleaned presence, and updated user heartbeats back to server silently ONLY if they actually changed
+      // Save healed spots or cleaned presence back to server silently ONLY if they actually changed.
+      // Crucial: We do not trigger automatic updateRoomState just because of heartbeat changes (_hasHeartbeatChange)
+      // during normal background loads, preventing active users from overwriting each other's check-ins.
       const spotsChanged = JSON.stringify(data.spots) !== JSON.stringify(updatedSpots);
       const presenceChanged = beforeFilterLength !== updatedPresence.length || JSON.stringify(data.presence) !== JSON.stringify(updatedPresence);
-      const heartbeatChanged = !!(data as any)._hasHeartbeatChange;
 
-      if (spotsChanged || presenceChanged || heartbeatChanged) {
-        await updateRoomState(targetRoomId, nextState);
+      if (spotsChanged || presenceChanged) {
+        if (token === activeRequestTokenRef.current) {
+          await updateRoomState(targetRoomId, nextState);
+        }
       }
     } catch (err: any) {
       console.error(err);
-      setIsOffline(true);
-      if (showSpinner) {
-        setError('Не удалось загрузить данные группы. Пожалуйста, проверьте интернет-соединение.');
-      } else {
-        console.warn('Background sync failed silently. Will retry on next interval.');
+      if (token === activeRequestTokenRef.current) {
+        setIsOffline(true);
+        if (showSpinner) {
+          setError('Не удалось загрузить данные группы. Пожалуйста, проверьте интернет-соединение.');
+        } else {
+          console.warn('Background sync failed silently. Will retry on next interval.');
+        }
       }
     } finally {
-      if (showSpinner) setIsLoading(false);
+      if (token === activeRequestTokenRef.current) {
+        if (showSpinner) setIsLoading(false);
+      }
     }
   };
 
@@ -300,24 +312,40 @@ export default function App() {
 
     // If already in a room, synchronize the name change
     if (roomId && roomState) {
+      const token = ++activeRequestTokenRef.current;
       setIsSaving(true);
       try {
-        const updatedUsers = roomState.users.map((u) =>
-          u.id === userId ? { ...u, name: trimmed, lastActive: new Date().toISOString() } : u
-        );
+        const freshState = await fetchRoomState(roomId, userId, userName);
+        if (token !== activeRequestTokenRef.current) return;
+
+        let updatedUsers = Array.isArray(freshState.users) ? [...freshState.users] : [];
+        const hasUser = updatedUsers.some((u) => u.id === userId);
+        if (hasUser) {
+          updatedUsers = updatedUsers.map((u) =>
+            u.id === userId ? { ...u, name: trimmed, lastActive: new Date().toISOString() } : u
+          );
+        } else {
+          updatedUsers.push({
+            id: userId,
+            name: trimmed,
+            lastActive: new Date().toISOString()
+          });
+        }
+
         // Also update the presence list names
-        const updatedPresence = roomState.presence.map((p) =>
+        const updatedPresence = (Array.isArray(freshState.presence) ? freshState.presence : []).map((p) =>
           p.userId === userId ? { ...p, userName: trimmed } : p
         );
 
         const nextState = {
-          ...roomState,
+          ...freshState,
           users: updatedUsers,
           presence: updatedPresence
         };
 
-        setRoomState(nextState);
         await updateRoomState(roomId, nextState);
+        if (token !== activeRequestTokenRef.current) return;
+        setRoomState(nextState);
       } catch (err) {
         console.error('Failed to update nickname in room:', err);
       } finally {
@@ -352,20 +380,28 @@ export default function App() {
 
       // If already in a room, synchronize the name change
       if (roomId && roomState) {
+        const token = ++activeRequestTokenRef.current;
         setIsSaving(true);
         try {
-          let updatedUsers = roomState.users.map((u) =>
-            u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
-          );
-          if (!updatedUsers.some((u) => u.id === userId)) {
+          const freshState = await fetchRoomState(roomId, userId, userName);
+          if (token !== activeRequestTokenRef.current) return;
+
+          let updatedUsers = Array.isArray(freshState.users) ? [...freshState.users] : [];
+          const hasUser = updatedUsers.some((u) => u.id === userId);
+          if (hasUser) {
+            updatedUsers = updatedUsers.map((u) =>
+              u.id === userId ? { ...u, name: groupName, lastActive: new Date().toISOString() } : u
+            );
+          } else {
             updatedUsers.push({
               id: userId,
               name: groupName,
               lastActive: new Date().toISOString()
             });
           }
+
           // Also update the presence list names
-          let updatedPresence = roomState.presence.map((p) =>
+          let updatedPresence = (Array.isArray(freshState.presence) ? freshState.presence : []).map((p) =>
             p.userId === userId ? { ...p, userName: groupName } : p
           );
 
@@ -374,13 +410,14 @@ export default function App() {
           }
 
           const nextState = {
-            ...roomState,
+            ...freshState,
             users: updatedUsers,
             presence: updatedPresence
           };
 
-          setRoomState(nextState);
           await updateRoomState(roomId, nextState);
+          if (token !== activeRequestTokenRef.current) return;
+          setRoomState(nextState);
         } catch (err) {
           console.error('Failed to update group name in room:', err);
         } finally {
@@ -407,12 +444,14 @@ export default function App() {
     }
     if (!roomId || !roomState) return;
 
+    const token = ++activeRequestTokenRef.current;
     setIsSaving(true);
     stopTimers(); // pause polling during transaction
     
     try {
       // Re-fetch latest state to prevent race conditions as much as possible
       const freshState = await fetchRoomState(roomId, userId, userName);
+      if (token !== activeRequestTokenRef.current) return;
       
       const spot = freshState.spots.find((s) => s.id === spotId);
       if (!spot) throw new Error('Геоточка не найдена.');
@@ -493,25 +532,41 @@ export default function App() {
       }
 
       // Build updated state
+      let nextUsers = Array.isArray(freshState.users) ? [...freshState.users] : [];
+      const hasUser = nextUsers.some((u) => u.id === userId);
+      if (hasUser) {
+        nextUsers = nextUsers.map((u) =>
+          u.id === userId ? { ...u, name: selectedGroup || userName, lastActive: nowString } : u
+        );
+      } else {
+        nextUsers.push({
+          id: userId,
+          name: selectedGroup || userName,
+          lastActive: nowString
+        });
+      }
+
       const nextState: RoomState = {
         ...freshState,
         presence: nextPresence,
         history: nextHistory,
-        // Make sure we exist/are updated in users
-        users: freshState.users.map((u) =>
-          u.id === userId ? { ...u, name: selectedGroup || userName, lastActive: nowString } : u
-        )
+        users: nextUsers
       };
 
       // Push back to server
       await updateRoomState(roomId, nextState);
+      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
     } catch (err: any) {
       console.error(err);
-      alert('Ошибка при сохранении статуса. Пожалуйста, попробуйте обновить страницу.');
+      if (token === activeRequestTokenRef.current) {
+        alert('Ошибка при сохранении статуса. Пожалуйста, попробуйте обновить страницу.');
+      }
     } finally {
-      setIsSaving(false);
-      startTimers(); // resume polling
+      if (token === activeRequestTokenRef.current) {
+        setIsSaving(false);
+        startTimers(); // resume polling
+      }
     }
   };
 
@@ -529,11 +584,13 @@ export default function App() {
       return;
     }
 
+    const token = ++activeRequestTokenRef.current;
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
+      if (token !== activeRequestTokenRef.current) return;
       
       const nameExists = freshState.spots.some(
         (s) => s.name.trim().toLowerCase() === trimmedName.toLowerCase()
@@ -555,15 +612,20 @@ export default function App() {
       };
 
       await updateRoomState(roomId, nextState);
+      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
       setIsAddingSpot(false);
       setSelectedSpotId(newSpot.id); // select newly created spot
     } catch (err) {
       console.error(err);
-      alert('Не удалось добавить новую геоточку. Попробуйте еще раз.');
+      if (token === activeRequestTokenRef.current) {
+        alert('Не удалось добавить новую геоточку. Попробуйте еще раз.');
+      }
     } finally {
-      setIsSaving(false);
-      startTimers();
+      if (token === activeRequestTokenRef.current) {
+        setIsSaving(false);
+        startTimers();
+      }
     }
   };
 
@@ -577,11 +639,13 @@ export default function App() {
     const trimmed = editingSpotName.trim();
     if (!trimmed) return;
 
+    const token = ++activeRequestTokenRef.current;
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
+      if (token !== activeRequestTokenRef.current) return;
       
       const nameExists = freshState.spots.some(
         (s) => s.id !== spotId && s.name.trim().toLowerCase() === trimmed.toLowerCase()
@@ -601,14 +665,19 @@ export default function App() {
       };
 
       await updateRoomState(roomId, nextState);
+      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
       setEditingSpotId(null);
     } catch (err) {
       console.error('Failed to update spot name:', err);
-      alert('Не удалось изменить название геоточки.');
+      if (token === activeRequestTokenRef.current) {
+        alert('Не удалось изменить название геоточки.');
+      }
     } finally {
-      setIsSaving(false);
-      startTimers();
+      if (token === activeRequestTokenRef.current) {
+        setIsSaving(false);
+        startTimers();
+      }
     }
   };
 
@@ -637,11 +706,13 @@ export default function App() {
       }
     }
 
+    const token = ++activeRequestTokenRef.current;
     setIsSaving(true);
     stopTimers();
 
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
+      if (token !== activeRequestTokenRef.current) return;
       
       // Remove spot and its presence data
       const nextSpots = freshState.spots.filter(s => s.id !== spotId);
@@ -654,35 +725,45 @@ export default function App() {
       };
 
       await updateRoomState(roomId, nextState);
+      if (token !== activeRequestTokenRef.current) return;
       setRoomState(nextState);
       if (selectedSpotId === spotId) {
         setSelectedSpotId(null);
       }
     } catch (err) {
       console.error(err);
-      alert('Ошибка при удалении точки.');
+      if (token === activeRequestTokenRef.current) {
+        alert('Ошибка при удалении точки.');
+      }
     } finally {
-      setIsSaving(false);
-      startTimers();
+      if (token === activeRequestTokenRef.current) {
+        setIsSaving(false);
+        startTimers();
+      }
     }
   };
 
   const handleClearActivity = async () => {
     if (!roomId || !roomState) return;
+    const token = ++activeRequestTokenRef.current;
     setIsSaving(true);
     setShowClearConfirm(false);
     try {
       const freshState = await fetchRoomState(roomId, userId, userName);
+      if (token !== activeRequestTokenRef.current) return;
       const nextState: RoomState = {
         ...freshState,
         history: []
       };
-      setRoomState(nextState);
       await updateRoomState(roomId, nextState);
+      if (token !== activeRequestTokenRef.current) return;
+      setRoomState(nextState);
     } catch (err) {
       console.warn('Failed to clear activity:', err);
     } finally {
-      setIsSaving(false);
+      if (token === activeRequestTokenRef.current) {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -757,11 +838,14 @@ export default function App() {
 
   const isGroup6Admin = selectedGroup === 'Л6' || selectedGroup === 'Группа 6';
 
-  const activeParticipants = (roomState?.users || []).filter(user => {
-    const userPresence = roomState?.presence.find(p => p.userId === user.id);
-    const userSpot = userPresence ? roomState?.spots.find(s => s.id === userPresence.spotId) : null;
-    return !!userSpot;
-  });
+  const activeParticipants = (roomState?.presence || [])
+    .map(p => ({
+      id: p.userId,
+      name: p.userName
+    }))
+    .filter((user, index, self) =>
+      user.id && self.findIndex(u => u.id === user.id) === index
+    );
 
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900 overflow-x-hidden">
