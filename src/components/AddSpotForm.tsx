@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Compass } from 'lucide-react';
 
 interface AddSpotFormProps {
   onAddSpot: (name: string, description: string) => void;
@@ -20,46 +20,46 @@ export default function AddSpotForm({
   };
 
   return (
-    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-sm">
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-1.5 text-slate-800 font-semibold text-sm">
-          <Plus className="w-4 h-4 text-blue-500" />
-          <span>Добавить новую геоточку</span>
+    <div className="bg-[#FAFBF7] rounded-xl p-4 border-2 border-[#3E4A34]/30 shadow-sm animate-in fade-in slide-in-from-top-2 duration-150">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/10">
+        <div className="flex items-center gap-1.5 text-[#3E4A34] font-black text-xs uppercase tracking-wider font-mono">
+          <Compass className="w-4 h-4 text-[#F59E0B] animate-pulse" />
+          <span>Новая геоточка</span>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          className="text-slate-400 hover:text-slate-600 transition-colors"
+          className="text-stone-400 hover:text-[#3E4A34] transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <input
             type="text"
             required
-            placeholder="Введите название геоточки"
+            placeholder="ВВЕДИТЕ НАЗВАНИЕ ТОЧКИ (например, С14)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 font-medium"
+            className="w-full px-3 py-2 text-xs bg-white border-2 border-[#3E4A34]/20 hover:border-[#3E4A34]/40 focus:border-[#2D5A27] focus:ring-1 focus:ring-[#2D5A27] rounded-lg focus:outline-none transition-all placeholder:text-stone-400 font-mono uppercase font-black"
           />
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-2">
           <button
             type="submit"
             disabled={!name.trim()}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all text-xs font-semibold shadow-sm disabled:opacity-50 disabled:pointer-events-none"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2D5A27] hover:bg-[#1C3E18] text-white rounded-lg hover:shadow transition-all text-xs font-black uppercase tracking-wider shadow-xs disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-[#A3E635]" />
             <span>Создать</span>
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition-all text-xs font-semibold"
+            className="px-3 py-2 border-2 border-[#3E4A34]/25 text-[#3E4A34] hover:bg-[#FAFBF7]/80 rounded-lg transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
           >
             <span>Отмена</span>
           </button>

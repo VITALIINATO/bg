@@ -120,6 +120,8 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards'); // Default view switcher for High Density layout
   const [isParticipantsExpanded, setIsParticipantsExpanded] = useState<boolean>(false);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState<boolean>(true);
+  const [selectedSpotToCheckIn, setSelectedSpotToCheckIn] = useState<string>('');
 
   // --- Refs ---
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -562,10 +564,6 @@ export default function App() {
 
   // Add custom spot
   const handleAddCustomSpot = async (name: string, description: string) => {
-    if (!isAdmin) {
-      alert('Добавлять геоточки может только АДМИН.');
-      return;
-    }
     if (!roomId || !roomState) return;
 
     const trimmedName = name.trim();
@@ -828,12 +826,11 @@ export default function App() {
           title="Синхронизировать сейчас"
         >
           <div className="bg-[#485638] border border-[#5B6D47] p-1.5 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-[#5B6D47] transition-colors shadow-inner">
-            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#E6E8D2] ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
+            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#E6E8D2] animate-pulse ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
           </div>
           <div>
             <h1 className="text-[11px] sm:text-sm font-black tracking-widest uppercase flex items-center gap-2 text-[#E6E8D2]">
               <span>BG-NOW</span>
-              <span className="text-[9px] px-1 bg-[#3E4A34] text-[#A3E635] rounded font-mono border border-[#485638] tracking-normal animate-pulse">TACTICAL</span>
             </h1>
             <p className="text-[9px] sm:text-[10px] text-[#A3B899] font-mono hidden xs:block tracking-wide">
               {roomId ? `SECTOR: ${roomId}` : 'SECTOR: OFFLINE'}
@@ -1001,48 +998,128 @@ export default function App() {
                   /* TAB: Location High Density Cards */
                   <div className="space-y-4">
                     
-                    {isAddingSpot && (
-                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                        <AddSpotForm
-                          onAddSpot={handleAddCustomSpot}
-                          onCancel={() => {
-                            setIsAddingSpot(false);
-                          }}
-                        />
+                    {/* ТАКТИЧЕСКИЙ ПУЛЬТ ОТМЕТОК */}
+                    <div className="bg-[#FAFBF7] border-2 border-[#3E4A34]/40 rounded-xl p-4 shadow-md">
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/20">
+                        <div className="flex items-center gap-1.5 text-[#2D3524] font-black text-xs uppercase tracking-wider">
+                          <Compass className="w-4 h-4 text-[#F59E0B] animate-pulse" />
+                          <span>ОТМЕТКА НА ПОЗИЦИИ</span>
+                        </div>
+                        {currentUserSpot && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-[#2D5A27] bg-[#E2F0D9] border border-[#2D5A27]/25 px-2 py-0.5 rounded-md uppercase font-mono">
+                              📍 {currentUserSpot.name}
+                            </span>
+                            <button
+                              onClick={() => handleTogglePresence(currentUserSpot.id)}
+                              className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white border border-red-700 rounded text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer font-mono"
+                            >
+                              СНЯТЬСЯ
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
 
+                      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                        <div className="flex-1 flex gap-2">
+                          <select
+                            value={selectedSpotToCheckIn}
+                            onChange={(e) => setSelectedSpotToCheckIn(e.target.value)}
+                            className="bg-[#FAFBF7] border-2 border-[#3E4A34]/30 hover:border-[#3E4A34]/50 rounded-lg px-3 py-2 text-xs font-bold text-[#3E4A34] focus:border-[#2D5A27] focus:ring-1 focus:ring-[#2D5A27] outline-none flex-1 font-mono uppercase transition-colors"
+                          >
+                            <option value="">-- ВЫБЕРИТЕ ГЕОТОЧКУ --</option>
+                            {(roomState?.spots || []).map(spot => (
+                              <option key={spot.id} value={spot.id}>
+                                {spot.name} {spot.description ? `(${spot.description})` : ''}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            onClick={() => setIsAddingSpot(!isAddingSpot)}
+                            className={`p-2 rounded-lg flex items-center justify-center transition-all border-2 cursor-pointer shrink-0 ${
+                              isAddingSpot 
+                                ? 'bg-amber-500 border-amber-600 text-slate-950' 
+                                : 'bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] border-[#2D3524]'
+                            }`}
+                            title="Добавить новую геоточку"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (!selectedSpotToCheckIn) {
+                              alert('Пожалуйста, выберите геоточку из списка.');
+                              return;
+                            }
+                            handleTogglePresence(selectedSpotToCheckIn);
+                          }}
+                          className="px-4 py-2 bg-[#2D5A27] hover:bg-[#1C3E18] text-white rounded-lg text-xs font-black tracking-widest uppercase transition-all duration-150 shadow-sm border border-[#1C3E18] flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Check className="w-4 h-4 text-[#A3E635]" />
+                          <span>ПОДТВЕРДИТЬ</span>
+                        </button>
+                      </div>
+
+                      {isAddingSpot && (
+                        <div className="mt-4 pt-4 border-t border-[#3E4A34]/15">
+                          <AddSpotForm
+                            onAddSpot={async (name, description) => {
+                              await handleAddCustomSpot(name, description);
+                              setIsAddingSpot(false);
+                            }}
+                            onCancel={() => {
+                              setIsAddingSpot(false);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ГРИД ДЛЯ ЗАНЯТЫХ ТОЧЕК */}
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
                       {roomState?.spots && roomState.spots.length > 0 ? (
-                        [...roomState.spots]
-                          .sort((a, b) => {
-                            // "ППД" always first
-                            if (a.name === 'ППД' && b.name !== 'ППД') return -1;
-                            if (b.name === 'ППД' && a.name !== 'ППД') return 1;
-                            
-                            // Then by occupancy (occupied first)
-                            const aOccupied = roomState.presence.some(p => p.spotId === a.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
-                            const bOccupied = roomState.presence.some(p => p.spotId === b.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
-                            if (aOccupied && !bOccupied) return -1;
-                            if (!aOccupied && bOccupied) return 1;
+                        (() => {
+                          const occupiedSpots = [...roomState.spots]
+                            .filter(spot => {
+                              const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
+                              return usersAtSpot.length > 0;
+                            })
+                            .sort((a, b) => {
+                              // "ППД" always first
+                              if (a.name === 'ППД' && b.name !== 'ППД') return -1;
+                              if (b.name === 'ППД' && a.name !== 'ППД') return 1;
 
-                            // Sort numerically if names are numbers
-                            const aNum = parseInt(a.name, 10);
-                            const bNum = parseInt(b.name, 10);
-                            if (!isNaN(aNum) && !isNaN(bNum)) {
-                              return aNum - bNum;
-                            }
-                            // Fallback to alphabetical sorting
-                            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-                          })
-                          .map((spot) => {
+                              // Sort numerically if names are numbers
+                              const aNum = parseInt(a.name, 10);
+                              const bNum = parseInt(b.name, 10);
+                              if (!isNaN(aNum) && !isNaN(bNum)) {
+                                return aNum - bNum;
+                              }
+                              // Fallback to alphabetical sorting
+                              return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                            });
+
+                          if (occupiedSpots.length === 0) {
+                            return (
+                              <div className="col-span-3 text-center py-10 bg-[#FAFBF7] border-2 border-dashed border-[#3E4A34]/20 rounded-xl shadow-xs w-full">
+                                <MapPin className="w-8 h-8 text-stone-300 mx-auto mb-2 animate-bounce" />
+                                <h4 className="text-xs font-black text-[#3E4A34] uppercase tracking-wider">Все группы вне позиций (off-site)</h4>
+                                <p className="text-[10px] text-stone-500 font-medium mt-1 font-sans">Выберите геоточку на пульте выше и подтвердите отметку.</p>
+                              </div>
+                            );
+                          }
+
+                          return occupiedSpots.map((spot) => {
                             const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
                             const isCurrentUserThere = usersAtSpot.some(u => u.userName === selectedGroup || u.userId === userId);
                             const isSelected = selectedSpotId === spot.id;
                             const isPPD = spot.name === 'ППД';
                             const hasUsers = usersAtSpot.length > 0;
 
-                            // ⚡️ Military style tactical cards with maximum visual contrast as requested!
+                            // Tactical styles
                             let cardStyle = '';
                             if (isPPD) {
                               if (hasUsers) {
@@ -1060,7 +1137,7 @@ export default function App() {
                                 : 'border-2 border-[#485638]/20 bg-[#FAFBF7]/90 hover:border-[#485638]/40 hover:bg-white text-[#3E4A34]';
                             }
 
-                            // 🏠 Layout 1: Special horizontal card for "ППД" (3 columns, half height, static yellow)
+                            // Horizontal card for ППД
                             if (isPPD) {
                               return (
                                 <div
@@ -1068,7 +1145,7 @@ export default function App() {
                                   onClick={() => handleTogglePresence(spot.id)}
                                   className={`${cardStyle} col-span-3 min-h-[45px] sm:min-h-[55px] rounded-lg sm:rounded-xl px-3 py-1.5 shadow-xs flex flex-row items-center justify-between gap-4 relative transition-all duration-200 cursor-pointer group hover:shadow-md`}
                                 >
-                                  {/* Left side: title and admin editing */}
+                                  {/* Title and editing */}
                                   <div className="flex items-center gap-2 min-w-0" onClick={(e) => { if (editingSpotId === spot.id) e.stopPropagation(); }}>
                                     {editingSpotId === spot.id ? (
                                       <div className="flex items-center gap-1">
@@ -1121,7 +1198,7 @@ export default function App() {
                                     )}
                                   </div>
 
-                                  {/* Center: List of groups/users currently at ППД */}
+                                  {/* List of active groups at ППД */}
                                   <div className="flex-1 flex items-center justify-end gap-2 px-2 min-w-0">
                                     {hasUsers && (
                                       <div className="flex flex-wrap gap-1 items-center justify-end min-w-0 overflow-hidden">
@@ -1148,7 +1225,7 @@ export default function App() {
                               );
                             }
 
-                            // 📍 Layout 2: Normal 3-column bento card for other locations (half height, title maximally visible)
+                            // Normal cards
                             return (
                               <div
                                 key={spot.id}
@@ -1215,38 +1292,36 @@ export default function App() {
                                   )}
                                 </div>
 
-                                {/* Travelers List or status - ultra compact */}
                                 <div className="flex-1 flex items-center justify-center min-h-[14px] sm:min-h-[18px] my-1">
                                   {usersAtSpot.length > 0 ? (
                                     <div className="flex flex-wrap gap-0.5 items-center justify-center max-w-full">
-                                        {usersAtSpot.map((presenceUser) => {
-                                          const isCurrent = presenceUser.userName === selectedGroup || presenceUser.userId === userId;
-                                          return (
-                                            <span
-                                              key={presenceUser.userId}
-                                              className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
-                                                isCurrent
-                                                  ? 'bg-[#2D5A27] text-white border-[#1C3E18]'
-                                                  : 'bg-[#485638] text-[#E6E8D2] border-[#3E4A34]'
-                                              }`}
-                                              title={presenceUser.userName}
-                                            >
-                                              {presenceUser.userName}
-                                            </span>
-                                          );
-                                        })}
+                                      {usersAtSpot.map((presenceUser) => {
+                                        const isCurrent = presenceUser.userName === selectedGroup || presenceUser.userId === userId;
+                                        return (
+                                          <span
+                                            key={presenceUser.userId}
+                                            className={`px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black text-center uppercase tracking-tight shadow-xs border truncate max-w-[55px] sm:max-w-[80px] ${
+                                              isCurrent
+                                                ? 'bg-[#2D5A27] text-white border-[#1C3E18]'
+                                                : 'bg-[#485638] text-[#E6E8D2] border-[#3E4A34]'
+                                            }`}
+                                            title={presenceUser.userName}
+                                          >
+                                            {presenceUser.userName}
+                                          </span>
+                                        );
+                                      })}
                                     </div>
                                   ) : (
                                     <span className="text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-tight">Никого</span>
                                   )}
                                 </div>
-
-
                               </div>
                             );
-                          })
+                          });
+                        })()
                       ) : (
-                        <div className="col-span-full bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400">
+                        <div className="col-span-full bg-[#FAFBF7] border-2 border-dashed border-[#3E4A34]/20 rounded-xl p-8 text-center text-stone-400">
                           <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                           <h4 className="text-sm font-bold text-slate-700">Нет геоточек</h4>
                           <p className="text-xs text-slate-400 mt-1">Добавьте первую точку, чтобы начать!</p>
@@ -1254,33 +1329,29 @@ export default function App() {
                       )}
                     </div>
 
-                    {!isAddingSpot && isAdmin && (
-                      <button
-                        onClick={() => setIsAddingSpot(true)}
-                        className="w-full py-3 bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] hover:text-white text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-colors border-2 border-[#2D3524] tracking-widest uppercase"
-                      >
-                        <Plus className="w-4 h-4 text-[#F59E0B]" />
-                        <span>ДОБАВИТЬ НОВУЮ ГЕОТОЧКУ</span>
-                      </button>
-                    )}
-
                   </div>
                 )}
               </div>
             </section>
 
             {/* COLUMN 3: Right Side Activity Stream */}
-            <aside className="w-full lg:w-72 order-2 lg:order-3 mt-12 lg:mt-0 bg-[#FAFBF7] border-2 border-[#3E4A34]/30 rounded-xl flex flex-col shrink-0 shadow-md overflow-hidden transition-all duration-300">
+            <aside className={`w-full ${isHistoryExpanded ? 'lg:w-72' : 'lg:w-14'} order-2 lg:order-3 mt-12 lg:mt-0 bg-[#FAFBF7] border-2 border-[#3E4A34]/30 rounded-xl flex flex-col shrink-0 shadow-md overflow-hidden transition-all duration-300`}>
               <div 
-                className="p-3 border-b border-[#3E4A34]/20 bg-[#3E4A34] flex justify-between items-center"
+                onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                className="p-3 border-b border-[#3E4A34]/20 bg-[#3E4A34] flex justify-between items-center cursor-pointer select-none"
+                title={isHistoryExpanded ? "Свернуть" : "Развернуть"}
               >
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
                   <Clock className="w-3.5 h-3.5 text-[#F59E0B] animate-pulse shrink-0" />
-                  <span className="text-[11px] font-black uppercase text-[#E6E8D2] tracking-widest truncate font-sans">ЛЕНТА АКТИВНОСТИ (Live)</span>
+                  {isHistoryExpanded && (
+                    <span className="text-[11px] font-black uppercase text-[#E6E8D2] tracking-widest truncate font-sans">
+                      ЛЕНТА АКТИВНОСТИ (Live)
+                    </span>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {selectedGroup && (
+                  {isHistoryExpanded && selectedGroup && (
                     <div className="flex items-center gap-1">
                       {showClearConfirm ? (
                         <>
@@ -1309,17 +1380,29 @@ export default function App() {
                       )}
                     </div>
                   )}
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsHistoryExpanded(!isHistoryExpanded);
+                    }}
+                    className="p-1 hover:bg-[#485638] rounded text-[#E6E8D2] transition-colors cursor-pointer"
+                  >
+                    <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isHistoryExpanded ? 'rotate-90 lg:rotate-180' : 'rotate-0'}`} />
+                  </button>
                 </div>
               </div>
-              <div className="block flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[300px] lg:max-h-none">
-                {roomState?.history && roomState.history.filter((ev) => ev.type === 'check-in').length > 0 ? (
-                  roomState.history.filter((ev) => ev.type === 'check-in').map((ev) => renderHistoryItem(ev))
-                ) : (
-                  <div className="text-center py-6 text-slate-400 italic text-[11px] font-sans">
-                    Нет последних действий. Нажмите "Отметиться" выше.
-                  </div>
-                )}
-              </div>
+              {isHistoryExpanded && (
+                <div className="block flex-1 overflow-y-auto p-3 space-y-3 font-mono max-h-[300px] lg:max-h-none">
+                  {roomState?.history && roomState.history.filter((ev) => ev.type === 'check-in').length > 0 ? (
+                    roomState.history.filter((ev) => ev.type === 'check-in').map((ev) => renderHistoryItem(ev))
+                  ) : (
+                    <div className="text-center py-6 text-slate-400 italic text-[11px] font-sans">
+                      Нет последних действий. Нажмите "Отметиться" выше.
+                    </div>
+                  )}
+                </div>
+              )}
             </aside>
           </>
         )}
