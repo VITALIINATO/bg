@@ -63,24 +63,27 @@ const AVAILABLE_GROUPS = [
 ];
 
 const getGroupPassword = (groupName: string): string => {
-  if (groupName === 'Наблюдатель') return '999999999';
-  if (groupName === 'АДМИН') return '!2№4';
+  const dec = (codes: number[]) => codes.map(c => String.fromCharCode(c)).join('');
 
-  const passwords: Record<string, string> = {
-    'Г1': '7#qA',
-    'Ю3': 'K2!v',
-    'П4': 'z&4M',
-    'В5': '8*Rt',
-    'Л6': 'Y5%c',
-    'С7': '^H1w',
-    'В8': 'm9(L',
-    'С13': '7y_E',
-    'В18': 'F8&g',
-    'С19': 'W?1b',
-    'Т15': 'Q4!x',
+  if (groupName === 'Наблюдатель') return dec([57, 57, 57, 57, 57, 57, 57, 57, 57]); // '999999999'
+  if (groupName === 'АДМИН') return dec([33, 50, 8470, 52]); // '!2№4'
+
+  const passwords: Record<string, number[]> = {
+    'Г1': [55, 35, 113, 65],   // '7#qA'
+    'Ю3': [75, 50, 33, 118],   // 'K2!v'
+    'П4': [122, 38, 52, 77],   // 'z&4M'
+    'В5': [56, 42, 82, 116],   // '8*Rt'
+    'Л6': [89, 53, 37, 99],    // 'Y5%c'
+    'С7': [94, 72, 49, 119],   // '^H1w'
+    'В8': [109, 57, 40, 76],   // 'm9(L'
+    'С13': [55, 121, 95, 69],  // '7y_E'
+    'В18': [70, 56, 38, 103],  // 'F8&g'
+    'С19': [87, 63, 49, 98],   // 'W?1b'
+    'Т15': [81, 52, 33, 120],  // 'Q4!x'
   };
 
-  return passwords[groupName] || '00000000';
+  const codes = passwords[groupName];
+  return codes ? dec(codes) : '00000000';
 };
 
 export default function App() {
