@@ -1118,6 +1118,7 @@ export default function App() {
                         (() => {
                           const occupiedSpots = [...roomState.spots]
                             .filter(spot => {
+                              if (isAdmin) return true;
                               const isPPD = spot.name === 'ППД';
                               const usersAtSpot = roomState.presence.filter(p => p.spotId === spot.id && p.userName !== 'АДМИН' && p.userName !== 'Наблюдатель');
                               return isPPD || usersAtSpot.length > 0;
@@ -1378,11 +1379,9 @@ export default function App() {
               >
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
                   <Clock className="w-3.5 h-3.5 text-[#F59E0B] animate-pulse shrink-0" />
-                  {isHistoryExpanded && (
-                    <span className="text-[11px] font-black uppercase text-[#E6E8D2] tracking-widest truncate font-sans">
-                      ЛЕНТА АКТИВНОСТИ (Live)
-                    </span>
-                  )}
+                  <span className={`text-[11px] font-black uppercase text-[#E6E8D2] tracking-widest truncate font-sans ${isHistoryExpanded ? 'block' : 'block lg:hidden'}`}>
+                    ЛЕНТА АКТИВНОСТИ (Live)
+                  </span>
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>

@@ -63,7 +63,7 @@
 }
 
 .compass-flash {
-  animation: compass-flash 1s ease-in-out infinite;
+  animation: compass-flash 2s ease-in-out infinite;
 }
 
 @utility scrollbar-none {

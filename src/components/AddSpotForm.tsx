@@ -40,7 +40,7 @@ export default function AddSpotForm({
           <input
             type="text"
             required
-            placeholder="ВВЕДИТЕ НАЗВАНИЕ ТОЧКИ (например, С14)"
+            placeholder="ВВЕДИТЕ НАЗВАНИЕ ТОЧКИ"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2 text-xs bg-white border-2 border-[#3E4A34]/20 hover:border-[#3E4A34]/40 focus:border-[#2D5A27] focus:ring-1 focus:ring-[#2D5A27] rounded-lg focus:outline-none transition-all placeholder:text-stone-400 font-mono uppercase font-black"
