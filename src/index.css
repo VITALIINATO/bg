@@ -49,6 +49,23 @@
   animation: pulse-ring 2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
 }
 
+@keyframes compass-flash {
+  0%, 100% {
+    transform: scale(1.15);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.9));
+  }
+  50% {
+    transform: scale(0.85);
+    opacity: 0.25;
+    filter: drop-shadow(0 0 0px rgba(245, 158, 11, 0));
+  }
+}
+
+.compass-flash {
+  animation: compass-flash 1s ease-in-out infinite;
+}
+
 @utility scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;

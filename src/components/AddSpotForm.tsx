@@ -23,7 +23,7 @@ export default function AddSpotForm({
     <div className="bg-[#FAFBF7] rounded-xl p-4 border-2 border-[#3E4A34]/30 shadow-sm animate-in fade-in slide-in-from-top-2 duration-150">
       <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/10">
         <div className="flex items-center gap-1.5 text-[#3E4A34] font-black text-xs uppercase tracking-wider font-mono">
-          <Compass className="w-4 h-4 text-[#F59E0B] animate-pulse" />
+          <Compass className="w-4 h-4 text-[#F59E0B] compass-flash" />
           <span>Новая геоточка</span>
         </div>
         <button

@@ -826,7 +826,7 @@ export default function App() {
           title="Синхронизировать сейчас"
         >
           <div className="bg-[#485638] border border-[#5B6D47] p-1.5 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-[#5B6D47] transition-colors shadow-inner">
-            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#E6E8D2] animate-pulse ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
+            <Compass className={`w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#E6E8D2] compass-flash ${isSyncing ? 'animate-spin' : 'animate-spin-slow'}`} />
           </div>
           <div>
             <h1 className="text-[11px] sm:text-sm font-black tracking-widest uppercase flex items-center gap-2 text-[#E6E8D2]">
@@ -998,73 +998,107 @@ export default function App() {
                   /* TAB: Location High Density Cards */
                   <div className="space-y-4">
                     
-                    {/* ТАКТИЧЕСКИЙ ПУЛЬТ ОТМЕТОК */}
-                    <div className="bg-[#FAFBF7] border-2 border-[#3E4A34]/40 rounded-xl p-4 shadow-md">
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/20">
-                        <div className="flex items-center gap-1.5 text-[#2D3524] font-black text-xs uppercase tracking-wider">
-                          <Compass className="w-4 h-4 text-[#F59E0B] animate-pulse" />
-                          <span>ОТМЕТКА НА ПОЗИЦИИ</span>
+                    {/* ТАКТИЧЕСКИЙ ПУЛЬТ ОТМЕТОК (ТОЛЬКО ДЛЯ УЧАСТНИКОВ) */}
+                    {selectedGroup !== 'АДМИН' && selectedGroup !== 'Наблюдатель' && (
+                      <div className="bg-[#FAFBF7] border-2 border-[#3E4A34]/40 rounded-xl p-4 shadow-md">
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/20">
+                          <div className="flex items-center gap-1.5 text-[#2D3524] font-black text-xs uppercase tracking-wider">
+                            <Compass className="w-4 h-4 text-[#F59E0B] compass-flash" />
+                            <span>ОТМЕТКА НА ПОЗИЦИИ</span>
+                          </div>
+                          {currentUserSpot && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-[#2D5A27] bg-[#E2F0D9] border border-[#2D5A27]/25 px-2 py-0.5 rounded-md uppercase font-mono">
+                                📍 {currentUserSpot.name}
+                              </span>
+                              <button
+                                onClick={() => handleTogglePresence(currentUserSpot.id)}
+                                className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white border border-red-700 rounded text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer font-mono"
+                              >
+                                СНЯТЬСЯ
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        {currentUserSpot && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-[#2D5A27] bg-[#E2F0D9] border border-[#2D5A27]/25 px-2 py-0.5 rounded-md uppercase font-mono">
-                              📍 {currentUserSpot.name}
-                            </span>
-                            <button
-                              onClick={() => handleTogglePresence(currentUserSpot.id)}
-                              className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white border border-red-700 rounded text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer font-mono"
+
+                        <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                          <div className="flex-1 flex gap-2">
+                            <select
+                              value={selectedSpotToCheckIn}
+                              onChange={(e) => setSelectedSpotToCheckIn(e.target.value)}
+                              className="bg-[#FAFBF7] border-2 border-[#3E4A34]/30 hover:border-[#3E4A34]/50 rounded-lg px-3 py-2 text-xs font-bold text-[#3E4A34] focus:border-[#2D5A27] focus:ring-1 focus:ring-[#2D5A27] outline-none flex-1 font-mono uppercase transition-colors"
                             >
-                              СНЯТЬСЯ
+                              <option value="">-- ВЫБЕРИТЕ ГЕОТОЧКУ --</option>
+                              {(roomState?.spots || []).map(spot => (
+                                <option key={spot.id} value={spot.id}>
+                                  {spot.name} {spot.description ? `(${spot.description})` : ''}
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              onClick={() => setIsAddingSpot(!isAddingSpot)}
+                              className={`p-2 rounded-lg flex items-center justify-center transition-all border-2 cursor-pointer shrink-0 ${
+                                isAddingSpot 
+                                  ? 'bg-amber-500 border-amber-600 text-slate-950' 
+                                  : 'bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] border-[#2D3524]'
+                              }`}
+                              title="Добавить новую геоточку"
+                            >
+                              <Plus className="w-5 h-5" />
                             </button>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
-                        <div className="flex-1 flex gap-2">
-                          <select
-                            value={selectedSpotToCheckIn}
-                            onChange={(e) => setSelectedSpotToCheckIn(e.target.value)}
-                            className="bg-[#FAFBF7] border-2 border-[#3E4A34]/30 hover:border-[#3E4A34]/50 rounded-lg px-3 py-2 text-xs font-bold text-[#3E4A34] focus:border-[#2D5A27] focus:ring-1 focus:ring-[#2D5A27] outline-none flex-1 font-mono uppercase transition-colors"
-                          >
-                            <option value="">-- ВЫБЕРИТЕ ГЕОТОЧКУ --</option>
-                            {(roomState?.spots || []).map(spot => (
-                              <option key={spot.id} value={spot.id}>
-                                {spot.name} {spot.description ? `(${spot.description})` : ''}
-                              </option>
-                            ))}
-                          </select>
 
                           <button
-                            onClick={() => setIsAddingSpot(!isAddingSpot)}
-                            className={`p-2 rounded-lg flex items-center justify-center transition-all border-2 cursor-pointer shrink-0 ${
-                              isAddingSpot 
-                                ? 'bg-amber-500 border-amber-600 text-slate-950' 
-                                : 'bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] border-[#2D3524]'
-                            }`}
-                            title="Добавить новую геоточку"
+                            onClick={() => {
+                              if (!selectedSpotToCheckIn) {
+                                alert('Пожалуйста, выберите геоточку из списка.');
+                                return;
+                              }
+                              handleTogglePresence(selectedSpotToCheckIn);
+                            }}
+                            className="px-4 py-2 bg-[#2D5A27] hover:bg-[#1C3E18] text-white rounded-lg text-xs font-black tracking-widest uppercase transition-all duration-150 shadow-sm border border-[#1C3E18] flex items-center justify-center gap-1.5 cursor-pointer"
                           >
-                            <Plus className="w-5 h-5" />
+                            <Check className="w-4 h-4 text-[#A3E635]" />
+                            <span>ПОДТВЕРДИТЬ</span>
                           </button>
                         </div>
 
-                        <button
-                          onClick={() => {
-                            if (!selectedSpotToCheckIn) {
-                              alert('Пожалуйста, выберите геоточку из списка.');
-                              return;
-                            }
-                            handleTogglePresence(selectedSpotToCheckIn);
-                          }}
-                          className="px-4 py-2 bg-[#2D5A27] hover:bg-[#1C3E18] text-white rounded-lg text-xs font-black tracking-widest uppercase transition-all duration-150 shadow-sm border border-[#1C3E18] flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Check className="w-4 h-4 text-[#A3E635]" />
-                          <span>ПОДТВЕРДИТЬ</span>
-                        </button>
+                        {isAddingSpot && (
+                          <div className="mt-4 pt-4 border-t border-[#3E4A34]/15">
+                            <AddSpotForm
+                              onAddSpot={async (name, description) => {
+                                await handleAddCustomSpot(name, description);
+                                setIsAddingSpot(false);
+                              }}
+                              onCancel={() => {
+                                setIsAddingSpot(false);
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
+                    )}
 
-                      {isAddingSpot && (
-                        <div className="mt-4 pt-4 border-t border-[#3E4A34]/15">
+                    {/* УПРАВЛЕНИЕ ГЕОТОЧКАМИ ДЛЯ АДМИНА */}
+                    {selectedGroup === 'АДМИН' && (
+                      <div className="bg-[#FAFBF7] border-2 border-[#3E4A34]/40 rounded-xl p-4 shadow-md">
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#3E4A34]/20">
+                          <div className="flex items-center gap-1.5 text-[#2D3524] font-black text-xs uppercase tracking-wider">
+                            <Compass className="w-4 h-4 text-[#F59E0B] compass-flash" />
+                            <span>УПРАВЛЕНИЕ ГЕОТОЧКАМИ (АДМИН)</span>
+                          </div>
+                        </div>
+                        
+                        {!isAddingSpot ? (
+                          <button
+                            onClick={() => setIsAddingSpot(true)}
+                            className="w-full py-2.5 bg-[#3E4A34] hover:bg-[#485638] text-[#E6E8D2] hover:text-white text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-colors border-2 border-[#2D3524] tracking-widest uppercase cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4 text-[#F59E0B]" />
+                            <span>ДОБАВИТЬ НОВУЮ ГЕОТОЧКУ</span>
+                          </button>
+                        ) : (
                           <AddSpotForm
                             onAddSpot={async (name, description) => {
                               await handleAddCustomSpot(name, description);
@@ -1074,9 +1108,9 @@ export default function App() {
                               setIsAddingSpot(false);
                             }}
                           />
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* ГРИД ДЛЯ ЗАНЯТЫХ ТОЧЕК */}
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
